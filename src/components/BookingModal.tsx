@@ -1,0 +1,665 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Ticket, ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Upload, CheckCircle2, MessageCircle, Download } from 'lucide-react';
+import { TicketPackage } from '../data/eventData';
+
+interface BookingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialPackage?: TicketPackage | null;
+}
+
+interface TicketQuantities {
+  vip: number;
+  general: number;
+  earlybird: number;
+}
+
+const TICKET_PRICES = {
+  vip: 5000,
+  general: 3000,
+  earlybird: 2000,
+};
+
+export const BookingModal: React.FC<BookingModalProps> = ({
+  isOpen,
+  onClose,
+  initialPackage,
+}) => {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Form inputs matching Figma #4:931
+  const [referenceNumber] = useState('REF-099952');
+  const [currentDate] = useState('08/24/2026 11:28');
+  const [name, setName] = useState('');
+  const [nic, setNic] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [email, setEmail] = useState('');
+
+  // Ticket quantities state matching Figma #4:969
+  const [quantities, setQuantities] = useState<TicketQuantities>({
+    vip: 0,
+    general: 0,
+    earlybird: 0,
+  });
+
+  // Slip file for Step 2
+  const [slipFile, setSlipFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Set initial package quantity when opened
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      if (initialPackage) {
+        setQuantities({
+          vip: initialPackage.id === 'vip' ? 1 : 0,
+          general: initialPackage.id === 'general' ? 1 : 0,
+          earlybird: initialPackage.id === 'earlybird' ? 1 : 0,
+        });
+      } else {
+        setQuantities({ vip: 1, general: 0, earlybird: 0 });
+      }
+    }
+  }, [isOpen, initialPackage]);
+
+  if (!isOpen) return null;
+
+  // Calculate total price
+  const totalAmount =
+    quantities.vip * TICKET_PRICES.vip +
+    quantities.general * TICKET_PRICES.general +
+    quantities.earlybird * TICKET_PRICES.earlybird;
+
+  const totalTickets = quantities.vip + quantities.general + quantities.earlybird;
+
+  const updateQuantity = (type: keyof TicketQuantities, delta: number) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [type]: Math.max(0, prev[type] + delta),
+    }));
+  };
+
+  const handleNextStep = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (totalTickets === 0) {
+      alert('Please select at least 1 ticket quantity to proceed.');
+      return;
+    }
+    setStep(2);
+  };
+
+  const handleConfirmBooking = () => {
+    setStep(3);
+  };
+
+  const handleClose = () => {
+    setStep(1);
+    setSlipFile(null);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1C1C]/70 backdrop-blur-[4px] overflow-y-auto animate-fadeIn">
+      {/* ========================================================================= */}
+      {/* STEP 1: Buy Tickets Modal (Figma Frame #4:922 in #4:121)                   */}
+      {/* ========================================================================= */}
+      {step === 1 && (
+        <div
+          className="relative w-full max-w-[672px] bg-white rounded-xl shadow-2xl overflow-hidden my-6 border border-gray-100"
+          style={{
+            boxShadow: '0px 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          }}
+        >
+          {/* Modal Header matching Figma #4:923 */}
+          <div className="flex items-center justify-between px-6 py-5 border-b border-[#F3F4F6]">
+            <div className="flex items-center gap-2.5">
+              <div className="text-[#121258]">
+                <Ticket className="w-5 h-5" />
+              </div>
+              <h2 className="font-sans font-bold text-xl text-[#111827] tracking-tight">
+                Buy Tickets
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="text-[#9CA3AF] hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Modal Body matching Figma #4:931 */}
+          <form onSubmit={handleNextStep}>
+            <div className="p-6 space-y-4 max-h-[72vh] overflow-y-auto">
+              {/* Reference Number Field matching Figma #4:933 */}
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-[#374151]">
+                  Reference Number
+                </label>
+                <input
+                  type="text"
+                  value={referenceNumber}
+                  readOnly
+                  className="w-full px-3 py-2 bg-[#F9FAFB] border border-[#D1D5DB] rounded-md text-sm text-[#6B7280] font-mono cursor-not-allowed select-all"
+                />
+              </div>
+
+              {/* Time & Date Field matching Figma #4:939 */}
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-[#374151]">
+                  Time & Date
+                </label>
+                <input
+                  type="text"
+                  value={currentDate}
+                  readOnly
+                  className="w-full px-3 py-2 bg-[#F9FAFB] border border-[#D1D5DB] rounded-md text-sm text-[#6B7280] cursor-not-allowed"
+                />
+              </div>
+
+              {/* Name Field matching Figma #4:945 */}
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-[#374151]">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your full name"
+                  className="w-full px-3 py-2 bg-white border border-[#D1D5DB] rounded-md text-sm text-gray-900 placeholder-[#6B7280] focus:outline-none focus:ring-1 focus:ring-[#121258] focus:border-[#121258] transition-colors"
+                />
+              </div>
+
+              {/* NIC Number Field matching Figma #4:951 */}
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-[#374151]">
+                  NIC Number
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={nic}
+                  onChange={(e) => setNic(e.target.value)}
+                  placeholder="Enter Your nic"
+                  className="w-full px-3 py-2 bg-white border border-[#D1D5DB] rounded-md text-sm text-gray-900 placeholder-[#6B7280] focus:outline-none focus:ring-1 focus:ring-[#121258] focus:border-[#121258] transition-colors"
+                />
+              </div>
+
+              {/* Contact Number Field matching Figma #4:957 */}
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-[#374151]">
+                  Contact Number
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={contactNumber}
+                  onChange={(e) => setContactNumber(e.target.value)}
+                  placeholder="Enter Your Contact number"
+                  className="w-full px-3 py-2 bg-white border border-[#D1D5DB] rounded-md text-sm text-gray-900 placeholder-[#6B7280] focus:outline-none focus:ring-1 focus:ring-[#121258] focus:border-[#121258] transition-colors"
+                />
+              </div>
+
+              {/* Email Field matching Figma #4:963 */}
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-[#374151]">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter Your email"
+                  className="w-full px-3 py-2 bg-white border border-[#D1D5DB] rounded-md text-sm text-gray-900 placeholder-[#6B7280] focus:outline-none focus:ring-1 focus:ring-[#121258] focus:border-[#121258] transition-colors"
+                />
+              </div>
+
+              {/* Ticket Quantities Section matching Figma #4:969 */}
+              <div className="pt-4 border-t border-[#F3F4F6] space-y-3">
+                <h3 className="text-sm font-medium text-[#111827]">
+                  Select Ticket Quantities:
+                </h3>
+
+                {/* VIP Ticket Row matching Figma #4:973 (bg: #A6BDEB) */}
+                <div className="flex items-center justify-between p-3.5 bg-[#A6BDEB] rounded-md shadow-sm">
+                  <span className="font-bold text-base text-[#111827]">
+                    VIP (5,000 LKR)
+                  </span>
+                  <div className="w-24 bg-white border border-[#E5E7EB] rounded flex items-center justify-between px-2 py-1 shadow-sm">
+                    <span className="text-sm font-semibold text-gray-900 w-8 text-center">
+                      {quantities.vip}
+                    </span>
+                    <div className="flex flex-col border-l border-gray-200 pl-1">
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity('vip', 1)}
+                        className="text-[#121258] hover:bg-gray-100 p-0.5 rounded transition-colors"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity('vip', -1)}
+                        className="text-[#121258] hover:bg-gray-100 p-0.5 rounded transition-colors"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* General Ticket Row matching Figma #4:989 (bg: #30969F) */}
+                <div className="flex items-center justify-between p-3.5 bg-[#30969F] rounded-md shadow-sm">
+                  <span className="font-bold text-base text-white">
+                    GENERAL (3,000 LKR)
+                  </span>
+                  <div className="w-24 bg-white border border-[#E5E7EB] rounded flex items-center justify-between px-2 py-1 shadow-sm">
+                    <span className="text-sm font-semibold text-gray-900 w-8 text-center">
+                      {quantities.general}
+                    </span>
+                    <div className="flex flex-col border-l border-gray-200 pl-1">
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity('general', 1)}
+                        className="text-[#121258] hover:bg-gray-100 p-0.5 rounded transition-colors"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity('general', -1)}
+                        className="text-[#121258] hover:bg-gray-100 p-0.5 rounded transition-colors"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Earlybird Ticket Row matching Figma #4:1005 (bg: #121258) */}
+                <div className="flex items-center justify-between p-3.5 bg-[#121258] rounded-md shadow-sm">
+                  <span className="font-bold text-base text-white">
+                    EARLYBIRD (2,000 LKR)
+                  </span>
+                  <div className="w-24 bg-white border border-[#E5E7EB] rounded flex items-center justify-between px-2 py-1 shadow-sm">
+                    <span className="text-sm font-semibold text-gray-900 w-8 text-center">
+                      {quantities.earlybird}
+                    </span>
+                    <div className="flex flex-col border-l border-gray-200 pl-1">
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity('earlybird', 1)}
+                        className="text-[#121258] hover:bg-gray-100 p-0.5 rounded transition-colors"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity('earlybird', -1)}
+                        className="text-[#121258] hover:bg-gray-100 p-0.5 rounded transition-colors"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer matching Figma #4:1021 */}
+            <div className="flex items-center justify-between px-6 py-4 bg-[#F9FAFB] border-t border-[#E5E7EB]">
+              <div className="font-sans font-bold text-lg text-[#111827]">
+                Total: {totalAmount.toLocaleString()} LKR
+              </div>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 px-6 py-2 bg-white hover:bg-slate-50 text-[#121258] font-medium text-sm border border-[#121258] rounded-md shadow-sm transition-all active:scale-[0.98]"
+              >
+                <span>Next</span>
+                <ArrowRight className="w-4 h-4 text-[#121258]" />
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* STEP 2: Upload Payment Proof Modal (Figma Frame #26:3515)                  */}
+      {/* ========================================================================= */}
+      {step === 2 && (
+        <div
+          className="relative w-full max-w-[672px] bg-white rounded-2xl shadow-2xl overflow-hidden my-6 border border-gray-100"
+          style={{
+            boxShadow: '0px 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          }}
+        >
+          {/* Modal Header matching Figma #26:3516 */}
+          <div className="flex items-center justify-between px-8 py-5 border-b border-[#E6E6E6]">
+            <h2 className="font-playfair font-bold text-2xl text-[#071A3D]">
+              Upload Payment Proof
+            </h2>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Modal Body matching Figma #26:3522 */}
+          <div className="p-8 space-y-6 max-h-[72vh] overflow-y-auto">
+            {/* Booking Summary Card matching Figma #26:3523 */}
+            <div className="space-y-2">
+              <h3 className="font-sans font-semibold text-sm text-[#4B5563]">
+                Booking Summary
+              </h3>
+              <div className="grid grid-cols-2 gap-4 p-4 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-sm">
+                <div>
+                  <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">
+                    REFERENCE NUMBER
+                  </span>
+                  <span className="font-bold text-[#071A3D] text-sm">
+                    #{referenceNumber}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">
+                    CUSTOMER NAME
+                  </span>
+                  <span className="font-bold text-[#071A3D] text-sm">
+                    {name || 'Kasun Perera'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">
+                    NIC / PASSPORT
+                  </span>
+                  <span className="font-bold text-[#071A3D] text-sm">
+                    {nic || '199203405678'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">
+                    CONTACT / EMAIL
+                  </span>
+                  <span className="font-bold text-[#071A3D] text-xs">
+                    {contactNumber || '+94 77 123 4567'} / {email || 'kasun@gmail.com'}
+                  </span>
+                </div>
+                <div className="col-span-2 pt-1 border-t border-gray-200/60">
+                  <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">
+                    DATE & TIME
+                  </span>
+                  <span className="font-bold text-[#071A3D] text-sm">
+                    August 30, 2025 | From 07:00 PM onwards
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Ticket Details breakdown matching Figma #26:3552 */}
+            <div className="space-y-2">
+              <h3 className="font-sans font-semibold text-sm text-[#4B5563]">
+                Ticket Details
+              </h3>
+              <div className="p-4 bg-gray-50/70 border border-gray-200 rounded-xl space-y-2">
+                {quantities.vip > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-700">VIP Ticket x {quantities.vip}</span>
+                    <span className="font-bold text-[#071A3D]">
+                      {(quantities.vip * TICKET_PRICES.vip).toLocaleString()} LKR
+                    </span>
+                  </div>
+                )}
+                {quantities.general > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-700">General Admission x {quantities.general}</span>
+                    <span className="font-bold text-[#071A3D]">
+                      {(quantities.general * TICKET_PRICES.general).toLocaleString()} LKR
+                    </span>
+                  </div>
+                )}
+                {quantities.earlybird > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-700">Earlybird Ticket x {quantities.earlybird}</span>
+                    <span className="font-bold text-[#071A3D]">
+                      {(quantities.earlybird * TICKET_PRICES.earlybird).toLocaleString()} LKR
+                    </span>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-gray-200 flex justify-between items-baseline">
+                  <span className="font-bold text-base text-gray-800">Total Amount:</span>
+                  <span className="font-bold text-2xl text-[#071A3D]">
+                    {totalAmount.toLocaleString()} LKR
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bank Transfer Details matching Figma #26:3569 */}
+            <div className="bg-[#071A3D] text-white p-5 rounded-xl space-y-3 shadow-md">
+              <h4 className="font-playfair font-bold text-xs uppercase tracking-widest text-[#D4AF37]">
+                BANK TRANSFER DETAILS
+              </h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-slate-300">Bank:</div>
+                <div className="font-medium text-white text-right">Pan Asia Bank</div>
+                <div className="text-slate-300">Branch:</div>
+                <div className="font-medium text-white text-right">Kundasale</div>
+                <div className="text-slate-300">Account Name:</div>
+                <div className="font-medium text-white text-right text-xs">
+                  Ever Efficient Business Management (Pvt) Ltd.
+                </div>
+              </div>
+              <div className="pt-2.5 border-t border-white/10 flex items-center justify-between">
+                <span className="text-xs text-slate-300">Account Number:</span>
+                <span className="font-mono font-bold text-lg text-[#D4AF37] tracking-wider">
+                  2058 1000 0062
+                </span>
+              </div>
+            </div>
+
+            {/* WhatsApp Notice matching Figma #26:3594 */}
+            <div className="p-4 bg-[#FEF2F2] border-l-4 border-red-500 rounded-r-lg text-xs text-red-700 font-medium">
+              Important: Please send your bank slip to our WhatsApp with your REF-Number to confirm your booking.
+            </div>
+
+            {/* Upload Area matching Figma #64:9119 */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-[#071A3D]/40 hover:border-[#071A3D] rounded-xl p-6 text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-slate-50"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setSlipFile(e.target.files[0]);
+                  }
+                }}
+              />
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-[#071A3D]/10 flex items-center justify-center text-[#071A3D]">
+                  <Upload className="w-5 h-5" />
+                </div>
+                {slipFile ? (
+                  <div className="flex items-center gap-2 text-emerald-600 font-semibold text-sm">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{slipFile.name}</span>
+                  </div>
+                ) : (
+                  <>
+                    <span className="font-bold text-base text-[#071A3D]">
+                      Upload Bank Slip
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      Click to browse or drag and drop slip file here (PDF, JPG, PNG)
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer matching Figma #26:3603 */}
+          <div className="p-6 bg-[#F9FAFB] border-t border-[#E5E7EB] space-y-3">
+            <p className="text-xs italic text-gray-500">
+              By clicking 'Confirm Booking', you agree that your reservation is subject to verification of the payment slip.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="inline-flex items-center gap-1.5 px-5 py-2 bg-white hover:bg-gray-100 text-[#071A3D] text-sm font-semibold rounded-lg border border-[#071A3D] transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBooking}
+                className="inline-flex items-center gap-1.5 px-6 py-2 bg-[#071A3D] hover:bg-[#071A3D]/90 text-white text-sm font-bold rounded-lg shadow-md transition-all active:scale-[0.98]"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Confirm Booking</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* STEP 3: Booking Confirmed Screen (Figma Frame #16:2825 / #26:3454)        */}
+      {/* ========================================================================= */}
+      {step === 3 && (
+        <div
+          className="relative w-full max-w-[672px] bg-white rounded-2xl shadow-2xl overflow-hidden my-6 border border-gray-100 animate-fadeIn"
+          style={{
+            boxShadow: '0px 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          }}
+        >
+          {/* Decorative Top Gradient Border matching Figma #26:3455 */}
+          <div
+            className="h-2 w-full"
+            style={{
+              background: 'linear-gradient(90deg, #B8962E 0%, #D4AF37 50%, #B8962E 100%)',
+            }}
+          />
+
+          {/* Close button */}
+          <button
+            onClick={handleClose}
+            className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors z-10"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="p-8 space-y-6 text-center">
+            {/* Trophy / Party Icon */}
+            <div className="w-16 h-16 mx-auto rounded-full bg-amber-100/70 border border-amber-300 flex items-center justify-center text-amber-600 shadow-md">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+
+            <div>
+              <h2 className="font-playfair font-bold text-3xl text-[#071A3D]">
+                 Booking Confirmed!
+              </h2>
+              <p className="font-hanken text-sm text-gray-500 mt-1 max-w-md mx-auto">
+                Your reservation has been successfully processed. An email confirmation is on its way.
+              </p>
+            </div>
+
+            {/* Ticket Card matching Figma #26:3454 */}
+            <div className="text-left p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 block">
+                    CUSTOMER NAME
+                  </span>
+                  <span className="font-bold text-base text-[#071A3D]">
+                    {name || 'Kasun Perera'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 block">
+                    PAYMENT STATUS
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-xs">
+                    Pending Verification
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="text-gray-400 block">Event:</span>
+                  <span className="font-bold text-gray-800 text-sm">නුවර ආලේ</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block">Reference:</span>
+                  <span className="font-mono font-bold text-[#071A3D] text-sm">#{referenceNumber}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block">Date & Time:</span>
+                  <span className="font-medium text-gray-800">August 30, 2025 | 7:00 PM</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block">Venue:</span>
+                  <span className="font-medium text-gray-800">Sahas Uyana - Kandy</span>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-gray-200 flex justify-between items-center text-sm">
+                <span className="text-gray-600 font-medium">
+                  Tickets: {totalTickets} Ticket(s)
+                </span>
+                <span className="font-bold text-lg text-[#071A3D]">
+                  {totalAmount.toLocaleString()} LKR
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons matching Figma #26:3438 */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => alert(`Downloading official e-ticket #${referenceNumber}...`)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#071A3D] hover:bg-[#071A3D]/90 text-white text-sm font-semibold rounded-lg shadow-md transition-all"
+              >
+                <Download className="w-4 h-4 text-[#D4AF37]" />
+                <span>Download Ticket</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.open(`https://wa.me/94771234567?text=Booking%20Reference%20${referenceNumber}`, '_blank')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-semibold rounded-lg shadow-md transition-all"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Send via WhatsApp</span>
+              </button>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="text-xs text-gray-500 hover:text-gray-800 underline transition-colors"
+              >
+                Back to Events
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
