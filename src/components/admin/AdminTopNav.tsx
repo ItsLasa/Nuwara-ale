@@ -4,11 +4,15 @@ import { Search, Bell, User } from 'lucide-react';
 interface AdminTopNavProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  pendingCount?: number;
+  onNotificationClick?: () => void;
 }
 
 export const AdminTopNav: React.FC<AdminTopNavProps> = ({
   searchQuery,
   onSearchChange,
+  pendingCount = 0,
+  onNotificationClick,
 }) => {
   return (
     <header className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between sticky top-0 z-30">
@@ -19,8 +23,8 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search bookings, customers..."
-          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-400 rounded-xl text-sm font-hanken text-zinc-800 placeholder-gray-600 focus:outline-none focus:border-[#071A3D] focus:bg-white transition-colors"
+          placeholder="Search bookings by name, REF, NIC, phone..."
+          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm font-hanken text-zinc-800 placeholder-gray-500 focus:outline-none focus:border-[#071A3D] focus:bg-white transition-colors"
         />
       </div>
 
@@ -28,11 +32,16 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
       <div className="flex items-center gap-4">
         {/* Notification Bell with Badge */}
         <button
-          title="Notifications"
-          className="relative p-2 rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+          onClick={onNotificationClick}
+          title={`${pendingCount} bookings pending verification`}
+          className="relative p-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
         >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
+          {pendingCount > 0 && (
+            <span className="absolute -top-1 -right-1 px-1.5 py-0.5 min-w-[18px] text-[10px] font-bold text-white bg-amber-500 rounded-full flex items-center justify-center shadow-sm animate-pulse">
+              {pendingCount}
+            </span>
+          )}
         </button>
 
         <div className="h-6 w-px bg-gray-200" />
