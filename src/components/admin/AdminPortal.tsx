@@ -6,7 +6,8 @@ import { AdminBookingsView } from './AdminBookingsView';
 import { AdminPackagesView } from './AdminPackagesView';
 import { LogoutModal } from './LogoutModal';
 import { VerificationModal } from './VerificationModal';
-import { INITIAL_BOOKINGS, BookingRecord } from '../../data/adminData';
+import { BookingRecord } from '../../data/adminData';
+import { useBookings } from '../../context/BookingContext';
 
 interface AdminPortalProps {
   onSwitchToPublic: () => void;
@@ -19,16 +20,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 }) => {
   const [currentTab, setCurrentTab] = useState<AdminTab>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
-  const [bookings, setBookings] = useState<BookingRecord[]>(INITIAL_BOOKINGS);
+  const {
+    bookings,
+    updateBookingStatus,
+    deleteBooking,
+    addBooking,
+    stats,
+    pendingCount,
+  } = useBookings();
 
   // Modals state
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [verifyingBooking, setVerifyingBooking] = useState<BookingRecord | null>(null);
 
-  const handleUpdateStatus = (id: string, newStatus: BookingRecord['status']) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b))
-    );
+  const handleUpdateStatus = (id: string, newStatus: BookingRecord['status'], adminNotes?: string) => {
+    updateBookingStatus(id, newStatus, adminNotes);
   };
 
   return (
@@ -47,6 +53,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <AdminTopNav
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          pendingCount={pendingCount}
+          onNotificationClick={() => setCurrentTab('bookings')}
         />
 
         {/* View Switcher */}
@@ -54,6 +62,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           {currentTab === 'dashboard' && (
             <AdminDashboardView
               bookings={bookings}
+              stats={stats}
               onViewAllBookings={() => setCurrentTab('bookings')}
               onOpenBookingDetails={(b) => setVerifyingBooking(b)}
             />
@@ -62,8 +71,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           {currentTab === 'bookings' && (
             <AdminBookingsView
               bookings={bookings}
+              externalSearch={searchQuery}
               onOpenBookingDetails={(b) => setVerifyingBooking(b)}
               onOpenVerification={(b) => setVerifyingBooking(b)}
+              onDeleteBooking={deleteBooking}
+              onAddBooking={addBooking}
             />
           )}
 
@@ -91,3 +103,4 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     </div>
   );
 };
+
