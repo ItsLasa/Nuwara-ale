@@ -2,14 +2,24 @@ export interface BookingRecord {
   id: string;
   refNumber: string;
   customerName: string;
+  nic?: string;
   date: string;
   time: string;
-  status: 'Confirmed' | 'Pending' | 'Pending verification' | 'Paid';
-  ticketType: 'VIP Tickets' | 'General Tickets' | 'Earlybird Tickets';
+  status: 'Confirmed' | 'Pending' | 'Pending verification' | 'Paid' | 'Rejected';
+  ticketType: 'VIP Tickets' | 'General Tickets' | 'Earlybird Tickets' | string;
+  ticketBreakdown?: {
+    vip: number;
+    general: number;
+    earlybird: number;
+  };
   ticketQty: number;
   contactNumber: string;
   email: string;
   totalPrice: number;
+  slipUrl?: string;
+  slipName?: string;
+  adminNotes?: string;
+  createdAt?: string;
 }
 
 export interface IncludedService {
