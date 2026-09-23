@@ -148,15 +148,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </button>
 
           {/* Divider */}
-          <div className="relative flex items-center justify-center py-2">
+          {/* <div className="relative flex items-center justify-center py-2">
             <div className="w-full border-t border-slate-700" />
             <span className="absolute px-3 bg-[#071A3D] text-[10px] font-medium tracking-wider text-slate-400 uppercase">
               OR CONTINUE WITH
             </span>
-          </div>
+          </div> */}
 
           {/* Google Login Button */}
-          <button
+          {/* <button
             type="button"
             onClick={onLoginSuccess}
             className="w-full py-2.5 px-4 bg-[#0B1326]/90 hover:bg-[#0B1326] border border-slate-700/80 rounded-xl text-slate-200 text-xs font-semibold flex items-center justify-center gap-2.5 hover:border-slate-600 transition-all"
@@ -180,7 +180,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               />
             </svg>
             <span>Continue with Google</span>
-          </button>
+          </button> */}
         </form>
       </div>
     </div>
