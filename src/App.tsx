@@ -7,8 +7,9 @@ import { AdminPortal } from './components/admin/AdminPortal';
 import { LoginModal } from './components/admin/LoginModal';
 import { TicketPackage } from './data/eventData';
 import { ShieldCheck, Eye } from 'lucide-react';
+import { BookingProvider } from './context/BookingContext';
 
-export default function App() {
+function AppContent() {
   const [currentView, setCurrentView] = useState<'public' | 'admin'>('public');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -109,5 +110,13 @@ export default function App() {
         />
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BookingProvider>
+      <AppContent />
+    </BookingProvider>
   );
 }
