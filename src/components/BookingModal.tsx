@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Ticket, ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Upload, CheckCircle2, MessageCircle, Download } from 'lucide-react';
-import { TicketPackage } from '../data/eventData';
+import { TicketPackage, EVENT_DATA } from '../data/eventData';
+import { useBookings } from '../context/BookingContext';
+import { BookingRecord } from '../data/adminData';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -25,11 +27,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onClose,
   initialPackage,
 }) => {
+  const { addBooking } = useBookings();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form inputs matching Figma #4:931
-  const [referenceNumber] = useState('REF-099952');
-  const [currentDate] = useState('08/24/2026 11:28');
+  const [referenceNumber, setReferenceNumber] = useState('REF-099952');
+  const [currentDate, setCurrentDate] = useState('08/24/2026 11:28');
   const [name, setName] = useState('');
   const [nic, setNic] = useState('');
   const [contactNumber, setContactNumber] = useState('');
@@ -44,12 +47,32 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // Slip file for Step 2
   const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [slipPreviewUrl, setSlipPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Set initial package quantity when opened
+  // Confirmed booking saved in context
+  const [confirmedBooking, setConfirmedBooking] = useState<BookingRecord | null>(null);
+
+  // Set initial package quantity & generate dynamic reference when opened
   useEffect(() => {
     if (isOpen) {
       setStep(1);
+      const randomRef = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+      setReferenceNumber(randomRef);
+
+      const now = new Date();
+      const formattedDate = now.toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+      });
+      const formattedTime = now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      setCurrentDate(`${formattedDate} ${formattedTime}`);
+
       if (initialPackage) {
         setQuantities({
           vip: initialPackage.id === 'vip' ? 1 : 0,
@@ -88,14 +111,177 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setStep(2);
   };
 
+  const handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSlipFile(file);
+
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 800;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, w, h);
+              setSlipPreviewUrl(canvas.toDataURL('image/jpeg', 0.82));
+            } else {
+              setSlipPreviewUrl(event.target?.result as string);
+            }
+          };
+          img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setSlipPreviewUrl(null);
+      }
+    }
+  };
+
   const handleConfirmBooking = () => {
+    const pkgLabels: string[] = [];
+    if (quantities.vip > 0) pkgLabels.push(`VIP (${quantities.vip})`);
+    if (quantities.general > 0) pkgLabels.push(`General (${quantities.general})`);
+    if (quantities.earlybird > 0) pkgLabels.push(`Earlybird (${quantities.earlybird})`);
+    const primaryType = pkgLabels.join(', ') || 'VIP Tickets';
+
+    const now = new Date();
+    const formattedDisplayDate = now.toLocaleDateString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    });
+    const formattedDisplayTime = now.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const saved = addBooking({
+      refNumber: referenceNumber,
+      customerName: name.trim() || 'Attendee',
+      nic: nic.trim(),
+      date: formattedDisplayDate,
+      time: formattedDisplayTime,
+      status: 'Pending verification',
+      ticketType: primaryType,
+      ticketBreakdown: { ...quantities },
+      ticketQty: totalTickets,
+      contactNumber: contactNumber.trim(),
+      email: email.trim(),
+      totalPrice: totalAmount,
+      slipName: slipFile ? slipFile.name : undefined,
+      slipUrl: slipPreviewUrl || undefined,
+    });
+
+    setConfirmedBooking(saved);
     setStep(3);
   };
 
   const handleClose = () => {
     setStep(1);
     setSlipFile(null);
+    setSlipPreviewUrl(null);
+    setConfirmedBooking(null);
     onClose();
+  };
+
+  const handleDownloadTicket = () => {
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Nuwara Ale Event Ticket - ${referenceNumber}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f4f6f9; color: #1e293b; }
+          .ticket-box { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 2px solid #071A3D; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+          .header { background: #071A3D; color: #ffffff; padding: 24px; text-align: center; }
+          .header h1 { margin: 0; font-size: 26px; color: #D4AF37; }
+          .header p { margin: 4px 0 0 0; font-size: 13px; opacity: 0.85; }
+          .content { padding: 24px; }
+          .badge { display: inline-block; padding: 4px 12px; background: #fef3c7; color: #92400e; border-radius: 9999px; font-weight: bold; font-size: 12px; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; padding-bottom: 16px; border-bottom: 1px dashed #cbd5e1; }
+          .label { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: bold; }
+          .val { font-size: 14px; font-weight: 600; color: #071A3D; margin-top: 2px; }
+          .total { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; color: #071A3D; margin-top: 10px; }
+          .footer { background: #f8fafc; padding: 16px 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; }
+        </style>
+      </head>
+      <body>
+        <div class="ticket-box">
+          <div class="header">
+            <h1>නුවර ආලේ - A Night of Musical Brilliance</h1>
+            <p>Official Admission Pass • Organized by EEBM (Pvt) Ltd</p>
+          </div>
+          <div class="content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span class="label">Reference Number</span>
+                <div class="val" style="font-size: 18px; color: #B8962E; font-family: monospace;">#${referenceNumber}</div>
+              </div>
+              <div>
+                <span class="badge">Pending Verification</span>
+              </div>
+            </div>
+            <div class="grid">
+              <div>
+                <span class="label">Customer Name</span>
+                <div class="val">${name || 'Valued Guest'}</div>
+              </div>
+              <div>
+                <span class="label">NIC Number</span>
+                <div class="val">${nic || 'N/A'}</div>
+              </div>
+              <div>
+                <span class="label">Contact / Email</span>
+                <div class="val">${contactNumber || 'N/A'} / ${email || 'N/A'}</div>
+              </div>
+              <div>
+                <span class="label">Event Date & Time</span>
+                <div class="val">${EVENT_DATA.dateString} | ${EVENT_DATA.timeString}</div>
+              </div>
+              <div>
+                <span class="label">Venue</span>
+                <div class="val">Sahas Uyana, Kandy</div>
+              </div>
+              <div>
+                <span class="label">Total Tickets</span>
+                <div class="val">${totalTickets} Ticket(s)</div>
+              </div>
+            </div>
+            <div class="total">
+              <span>Total Amount:</span>
+              <span style="color: #071A3D;">Rs. ${totalAmount.toLocaleString()} LKR</span>
+            </div>
+          </div>
+          <div class="footer">
+            Please present this confirmation and payment receipt at the entrance gate.<br/>
+            Inquiries Hotline: 077 4152525 / 076 0450456
+          </div>
+        </div>
+        <script>window.print();</script>
+      </body>
+      </html>
+    `;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+    }
   };
 
   return (
@@ -397,7 +583,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     DATE & TIME
                   </span>
                   <span className="font-bold text-[#071A3D] text-sm">
-                    August 30, 2025 | From 07:00 PM onwards
+                    {EVENT_DATA.dateString} | {EVENT_DATA.timeString}
                   </span>
                 </div>
               </div>
@@ -480,23 +666,35 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 type="file"
                 accept="image/*,.pdf"
                 className="hidden"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    setSlipFile(e.target.files[0]);
-                  }
-                }}
+                onChange={handleFileSelection}
               />
               <div className="flex flex-col items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-[#071A3D]/10 flex items-center justify-center text-[#071A3D]">
-                  <Upload className="w-5 h-5" />
-                </div>
-                {slipFile ? (
-                  <div className="flex items-center gap-2 text-emerald-600 font-semibold text-sm">
-                    <CheckCircle2 className="w-4 h-4" />
+                {slipPreviewUrl ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <img
+                      src={slipPreviewUrl}
+                      alt="Bank Slip Preview"
+                      className="h-28 max-w-full object-contain rounded-lg border border-gray-200 shadow-sm"
+                    />
+                    <div className="flex items-center gap-1.5 text-emerald-600 font-semibold text-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{slipFile?.name || 'Slip uploaded successfully'}</span>
+                    </div>
+                    <span className="text-[11px] text-gray-400">Click to replace file</span>
+                  </div>
+                ) : slipFile ? (
+                  <div className="flex flex-col items-center gap-1.5 text-emerald-600 font-semibold text-sm">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                    </div>
                     <span>{slipFile.name}</span>
+                    <span className="text-[11px] text-gray-400 font-normal">Click to replace file</span>
                   </div>
                 ) : (
                   <>
+                    <div className="w-10 h-10 rounded-full bg-[#071A3D]/10 flex items-center justify-center text-[#071A3D]">
+                      <Upload className="w-5 h-5" />
+                    </div>
                     <span className="font-bold text-base text-[#071A3D]">
                       Upload Bank Slip
                     </span>
@@ -573,7 +771,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                  Booking Confirmed!
               </h2>
               <p className="font-hanken text-sm text-gray-500 mt-1 max-w-md mx-auto">
-                Your reservation has been successfully processed. An email confirmation is on its way.
+                Your reservation has been successfully submitted and forwarded to the admin verification queue.
               </p>
             </div>
 
@@ -585,7 +783,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     CUSTOMER NAME
                   </span>
                   <span className="font-bold text-base text-[#071A3D]">
-                    {name || 'Kasun Perera'}
+                    {confirmedBooking?.customerName || name || 'Kasun Perera'}
                   </span>
                 </div>
                 <div className="text-right">
@@ -609,7 +807,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </div>
                 <div>
                   <span className="text-gray-400 block">Date & Time:</span>
-                  <span className="font-medium text-gray-800">August 30, 2025 | 7:00 PM</span>
+                  <span className="font-medium text-gray-800">{EVENT_DATA.dateString} | {EVENT_DATA.timeString}</span>
                 </div>
                 <div>
                   <span className="text-gray-400 block">Venue:</span>
@@ -631,17 +829,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => alert(`Downloading official e-ticket #${referenceNumber}...`)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#071A3D] hover:bg-[#071A3D]/90 text-white text-sm font-semibold rounded-lg shadow-md transition-all"
+                onClick={handleDownloadTicket}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#071A3D] hover:bg-[#071A3D]/90 text-white text-sm font-semibold rounded-lg shadow-md transition-all active:scale-[0.98]"
               >
                 <Download className="w-4 h-4 text-[#D4AF37]" />
-                <span>Download Ticket</span>
+                <span>Download / Print Ticket</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => window.open(`https://wa.me/94771234567?text=Booking%20Reference%20${referenceNumber}`, '_blank')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-semibold rounded-lg shadow-md transition-all"
+                onClick={() => {
+                  const msg = encodeURIComponent(
+                    `Hello Nuwara Ale Operations Team,\nI have submitted my payment slip for booking #${referenceNumber}.\nCustomer: ${name}\nNIC: ${nic}\nTotal: Rs. ${totalAmount.toLocaleString()} LKR\nPlease verify my reservation.`
+                  );
+                  window.open(`https://wa.me/94774152525?text=${msg}`, '_blank');
+                }}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-semibold rounded-lg shadow-md transition-all active:scale-[0.98]"
               >
                 <MessageCircle className="w-4 h-4" />
                 <span>Send via WhatsApp</span>
@@ -654,7 +857,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 onClick={handleClose}
                 className="text-xs text-gray-500 hover:text-gray-800 underline transition-colors"
               >
-                Back to Events
+                Close & Return to Event Page
               </button>
             </div>
           </div>
