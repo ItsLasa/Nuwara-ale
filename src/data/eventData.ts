@@ -21,21 +21,23 @@ export interface HotlineContact {
   displayPhone: string;
 }
 
+
+
 export const EVENT_DATA = {
   titleSinhala: 'නුවර ආලේ',
   titleEnglish: 'A Night of Musical Brilliance',
   chapter: 'Chapter 01',
-  dateString: 'August 30, 2025',
+  dateString: 'August 30',
   timeString: 'From 7:00 PM onwards',
-  dateShort: 'Aug 30, 2025',
-  timeDetail: 'Saturday, 6:30 PM Onwards',
+  dateShort: 'Aug 30',
+  timeDetail: 'Saturday, 7:00 PM Onwards',
   venue: 'Sahas Uyana',
   venueLocation: 'Kandy, Sri Lanka',
   venueFull: 'Sahas Uyana - Kandy',
   organizer: 'EVER EFFICIENT Business Management (Pvt) Ltd',
   heroBannerImage: '/images/hero_banner.png',
   eventPosterImage: '/images/event_poster.png',
-  countdownTarget: '2025-08-30T19:00:00',
+  countdownTarget: '2027-08-30T19:00:00',
   aboutText:
     'Experience an unforgettable evening of rhythm, soul, and spectacular performances at "nuwra ale". This premium musical concert brings together the finest artists for a night that celebrates the essence of Sri Lankan musical talent.',
   highlights: [
