@@ -15,8 +15,10 @@ import {
   Ban,
   FileSpreadsheet,
   X,
+  Loader2,
 } from 'lucide-react';
 import { BookingRecord } from '../../data/adminData';
+import { downloadTicketPdf } from '../../utils/ticketPdfGenerator';
 
 interface AdminBookingsViewProps {
   bookings: BookingRecord[];
@@ -54,6 +56,32 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
     status: 'Confirmed' as BookingRecord['status'],
     notes: 'Direct Box Office Reservation',
   });
+  const [downloadingTicketId, setDownloadingTicketId] = useState<string | null>(null);
+
+  const handleRowDownloadTicket = async (b: BookingRecord) => {
+    try {
+      setDownloadingTicketId(b.id);
+      await downloadTicketPdf({
+        refNumber: b.refNumber,
+        customerName: b.customerName,
+        nic: b.nic,
+        contactNumber: b.contactNumber,
+        email: b.email,
+        date: b.date,
+        time: b.time,
+        status: b.status,
+        ticketType: b.ticketType,
+        ticketBreakdown: b.ticketBreakdown,
+        ticketQty: b.ticketQty,
+        totalPrice: b.totalPrice,
+      });
+    } catch (err) {
+      console.error('Failed to download ticket PDF:', err);
+      alert('Failed to generate ticket PDF. Please try again.');
+    } finally {
+      setDownloadingTicketId(null);
+    }
+  };
 
   // Sync externalSearch if provided
   useEffect(() => {
@@ -529,6 +557,18 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
                         >
                           <ShieldCheck className="w-3 h-3 text-amber-400" />
                           <span>Verify</span>
+                        </button>
+                        <button
+                          onClick={() => handleRowDownloadTicket(b)}
+                          disabled={downloadingTicketId === b.id}
+                          title="Download PDF Ticket with Details & Logo"
+                          className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition-colors disabled:opacity-50"
+                        >
+                          {downloadingTicketId === b.id ? (
+                            <Loader2 className="w-3.5 h-3.5 text-amber-700 animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5 text-amber-700" />
+                          )}
                         </button>
                         {onDeleteBooking && (
                           <button
