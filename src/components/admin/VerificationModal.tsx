@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, Clock, AlertCircle, Receipt, ExternalLink, Image as ImageIcon, Ban, ShieldCheck } from 'lucide-react';
+import { X, CheckCircle2, Clock, AlertCircle, Receipt, ExternalLink, Image as ImageIcon, Ban, ShieldCheck, Download, Loader2 } from 'lucide-react';
 import { BookingRecord } from '../../data/adminData';
+import { downloadTicketPdf } from '../../utils/ticketPdfGenerator';
 
 interface VerificationModalProps {
   booking: BookingRecord | null;
@@ -20,6 +21,7 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
   );
   const [adminNotes, setAdminNotes] = useState<string>('');
   const [isZoomingSlip, setIsZoomingSlip] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   useEffect(() => {
     if (booking) {
@@ -29,6 +31,31 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
   }, [booking]);
 
   if (!isOpen || !booking) return null;
+
+  const handleDownloadTicketPdf = async () => {
+    try {
+      setIsDownloadingPdf(true);
+      await downloadTicketPdf({
+        refNumber: booking.refNumber,
+        customerName: booking.customerName,
+        nic: booking.nic,
+        contactNumber: booking.contactNumber,
+        email: booking.email,
+        date: booking.date,
+        time: booking.time,
+        status: selectedStatus || booking.status,
+        ticketType: booking.ticketType,
+        ticketBreakdown: booking.ticketBreakdown,
+        ticketQty: booking.ticketQty,
+        totalPrice: booking.totalPrice,
+      });
+    } catch (err) {
+      console.error('Error generating PDF ticket:', err);
+      alert('Failed to generate ticket PDF. Please try again.');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   const handleSave = () => {
     onUpdateStatus(booking.id, selectedStatus, adminNotes);
@@ -295,15 +322,31 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 bg-[#0B1326]/80 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={handleQuickApprove}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Quick Approve</span>
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 bg-[#0B1326]/80 border-t border-slate-800">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleQuickApprove}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Quick Approve</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadTicketPdf}
+              disabled={isDownloadingPdf}
+              className="px-3.5 py-2 bg-[#071A3D] hover:bg-[#121258] text-white text-xs font-semibold rounded-xl border border-slate-700 transition-all flex items-center gap-1.5 disabled:opacity-75"
+              title="Download official PDF ticket for this booking"
+            >
+              {isDownloadingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5 text-[#D4AF37]" />
+              )}
+              <span>{isDownloadingPdf ? 'Generating...' : 'Download PDF Ticket'}</span>
+            </button>
+          </div>
 
           <div className="flex items-center gap-3">
             <button
