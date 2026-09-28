@@ -8,6 +8,7 @@ import { LoginModal } from './components/admin/LoginModal';
 import { TicketPackage } from './data/eventData';
 import { ShieldCheck, Eye } from 'lucide-react';
 import { BookingProvider } from './context/BookingContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState<'public' | 'admin'>('public');
@@ -86,11 +87,13 @@ function AppContent() {
           <Footer onAdminClick={handleAdminAccess} />
 
           {/* 4. Interactive Booking & Upload Payment Proof Flow (Figma Frames: #4:121 & #26:3515) */}
-          <BookingModal
-            isOpen={isBookingModalOpen}
-            onClose={handleCloseBooking}
-            initialPackage={selectedPackage}
-          />
+          <ErrorBoundary onReset={handleCloseBooking}>
+            <BookingModal
+              isOpen={isBookingModalOpen}
+              onClose={handleCloseBooking}
+              initialPackage={selectedPackage}
+            />
+          </ErrorBoundary>
 
           {/* 5. Login Modal (Figma Frame: #114:364 "Welcome To NuwaraAle") */}
           <LoginModal
