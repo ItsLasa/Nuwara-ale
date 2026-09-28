@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Ticket, ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Upload, CheckCircle2, MessageCircle, Download } from 'lucide-react';
+import { X, Ticket, ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Upload, CheckCircle2, MessageCircle, Download, Loader2 } from 'lucide-react';
 import { TicketPackage, EVENT_DATA } from '../data/eventData';
 import { useBookings } from '../context/BookingContext';
 import { BookingRecord } from '../data/adminData';
+import { downloadTicketPdf } from '../utils/ticketPdfGenerator';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // Confirmed booking saved in context
   const [confirmedBooking, setConfirmedBooking] = useState<BookingRecord | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Set initial package quantity & generate dynamic reference when opened
   useEffect(() => {
@@ -197,101 +199,49 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setSlipFile(null);
     setSlipPreviewUrl(null);
     setConfirmedBooking(null);
+    setIsGeneratingPdf(false);
     onClose();
   };
 
-  const handleDownloadTicket = () => {
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Nuwara Ale Event Ticket - ${referenceNumber}</title>
-        <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f4f6f9; color: #1e293b; }
-          .ticket-box { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 2px solid #071A3D; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-          .header { background: #071A3D; color: #ffffff; padding: 24px; text-align: center; }
-          .header h1 { margin: 0; font-size: 26px; color: #D4AF37; }
-          .header p { margin: 4px 0 0 0; font-size: 13px; opacity: 0.85; }
-          .content { padding: 24px; }
-          .badge { display: inline-block; padding: 4px 12px; background: #fef3c7; color: #92400e; border-radius: 9999px; font-weight: bold; font-size: 12px; }
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; padding-bottom: 16px; border-bottom: 1px dashed #cbd5e1; }
-          .label { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: bold; }
-          .val { font-size: 14px; font-weight: 600; color: #071A3D; margin-top: 2px; }
-          .total { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; color: #071A3D; margin-top: 10px; }
-          .footer { background: #f8fafc; padding: 16px 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; }
-        </style>
-      </head>
-      <body>
-        <div class="ticket-box">
-          <div class="header">
-            <h1>නුවර ආලේ - A Night of Musical Brilliance</h1>
-            <p>Official Admission Pass • Organized by EEBM (Pvt) Ltd</p>
-          </div>
-          <div class="content">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <span class="label">Reference Number</span>
-                <div class="val" style="font-size: 18px; color: #B8962E; font-family: monospace;">#${referenceNumber}</div>
-              </div>
-              <div>
-                <span class="badge">Pending Verification</span>
-              </div>
-            </div>
-            <div class="grid">
-              <div>
-                <span class="label">Customer Name</span>
-                <div class="val">${name || 'Valued Guest'}</div>
-              </div>
-              <div>
-                <span class="label">NIC Number</span>
-                <div class="val">${nic || 'N/A'}</div>
-              </div>
-              <div>
-                <span class="label">Contact / Email</span>
-                <div class="val">${contactNumber || 'N/A'} / ${email || 'N/A'}</div>
-              </div>
-              <div>
-                <span class="label">Event Date & Time</span>
-                <div class="val">${EVENT_DATA.dateString} | ${EVENT_DATA.timeString}</div>
-              </div>
-              <div>
-                <span class="label">Venue</span>
-                <div class="val">Sahas Uyana, Kandy</div>
-              </div>
-              <div>
-                <span class="label">Total Tickets</span>
-                <div class="val">${totalTickets} Ticket(s)</div>
-              </div>
-            </div>
-            <div class="total">
-              <span>Total Amount:</span>
-              <span style="color: #071A3D;">Rs. ${totalAmount.toLocaleString()} LKR</span>
-            </div>
-          </div>
-          <div class="footer">
-            Please present this confirmation and payment receipt at the entrance gate.<br/>
-            Inquiries Hotline: 077 4152525 / 076 0450456
-          </div>
-        </div>
-        <script>window.print();</script>
-      </body>
-      </html>
-    `;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
+  const handleDownloadTicket = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      await downloadTicketPdf({
+        refNumber: confirmedBooking?.refNumber || referenceNumber,
+        customerName: confirmedBooking?.customerName || name.trim() || 'Valued Guest',
+        nic: confirmedBooking?.nic || nic.trim() || undefined,
+        contactNumber: confirmedBooking?.contactNumber || contactNumber.trim() || 'N/A',
+        email: confirmedBooking?.email || email.trim() || 'N/A',
+        date: confirmedBooking?.date,
+        time: confirmedBooking?.time,
+        status: confirmedBooking?.status || 'Pending verification',
+        ticketType: confirmedBooking?.ticketType,
+        ticketBreakdown: confirmedBooking?.ticketBreakdown || quantities,
+        ticketQty: confirmedBooking?.ticketQty || totalTickets,
+        totalPrice: confirmedBooking?.totalPrice || totalAmount,
+      });
+    } catch (err) {
+      console.error('Failed to generate PDF ticket:', err);
+      alert('An error occurred while generating your PDF ticket. Please try again.');
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1C1C]/70 backdrop-blur-[4px] overflow-y-auto animate-fadeIn">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
+    >
       {/* ========================================================================= */}
       {/* STEP 1: Buy Tickets Modal (Figma Frame #4:922 in #4:121)                   */}
       {/* ========================================================================= */}
       {step === 1 && (
         <div
-          className="relative w-full max-w-[672px] bg-white rounded-xl shadow-2xl overflow-hidden my-6 border border-gray-100"
+          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-[672px] bg-white rounded-xl shadow-2xl overflow-hidden my-auto border border-gray-100"
           style={{
             boxShadow: '0px 25px 50px -12px rgba(0, 0, 0, 0.25)',
           }}
@@ -519,7 +469,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       {/* ========================================================================= */}
       {step === 2 && (
         <div
-          className="relative w-full max-w-[672px] bg-white rounded-2xl shadow-2xl overflow-hidden my-6 border border-gray-100"
+          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-[672px] bg-white rounded-2xl shadow-2xl overflow-hidden my-auto border border-gray-100"
           style={{
             boxShadow: '0px 25px 50px -12px rgba(0, 0, 0, 0.25)',
           }}
@@ -739,7 +690,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       {/* ========================================================================= */}
       {step === 3 && (
         <div
-          className="relative w-full max-w-[672px] bg-white rounded-2xl shadow-2xl overflow-hidden my-6 border border-gray-100 animate-fadeIn"
+          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-[672px] bg-white rounded-2xl shadow-2xl overflow-hidden my-auto border border-gray-100 animate-fadeIn"
           style={{
             boxShadow: '0px 25px 50px -12px rgba(0, 0, 0, 0.25)',
           }}
@@ -830,10 +782,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <button
                 type="button"
                 onClick={handleDownloadTicket}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#071A3D] hover:bg-[#071A3D]/90 text-white text-sm font-semibold rounded-lg shadow-md transition-all active:scale-[0.98]"
+                disabled={isGeneratingPdf}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#071A3D] hover:bg-[#071A3D]/90 disabled:opacity-75 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg shadow-md transition-all active:scale-[0.98]"
               >
-                <Download className="w-4 h-4 text-[#D4AF37]" />
-                <span>Download / Print Ticket</span>
+                {isGeneratingPdf ? (
+                  <Loader2 className="w-4 h-4 text-[#D4AF37] animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 text-[#D4AF37]" />
+                )}
+                <span>{isGeneratingPdf ? 'Generating PDF Ticket...' : 'Download PDF Ticket'}</span>
               </button>
 
               <button
