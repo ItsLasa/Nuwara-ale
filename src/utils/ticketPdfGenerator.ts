@@ -6,6 +6,7 @@ import { EVENT_DATA } from '../data/eventData';
 
 export interface TicketPdfData {
   refNumber: string;
+  secretCode?: string;
   customerName: string;
   nic?: string;
   contactNumber: string;
@@ -117,6 +118,7 @@ interface TicketRenderInput {
   number: number;
   total: number;
   bookedAt: string;
+  ticketSecretCode: string;
 }
 
 const FONT_STACK = "'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif";
@@ -193,6 +195,7 @@ function renderTicketHtml(t: TicketRenderInput): string {
               <div style="font-size:11px; color:#8FA3C2; font-weight:600; margin-bottom:3px;">Ticket holder</div>
               <div style="font-size:15px; color:#ffffff; font-weight:700; line-height:1.25; word-break:break-word;">${holder}</div>
               <div style="font-size:11px; color:#B8C5DA; margin-top:2px; word-break:break-word;">ID: ${nic}</div>
+              <div style="font-family:'Courier New',monospace; font-size:10px; font-weight:700; color:#FCD34D; margin-top:2px;">SEC: ${escapeHtml(t.ticketSecretCode)}</div>
             </td>
           </tr>
         </table>
@@ -226,9 +229,10 @@ function renderTicketHtml(t: TicketRenderInput): string {
         <!-- QR -->
         <div id="qr-slot" style="width:${QR_TILE}px; height:${QR_TILE}px; margin:20px auto 0 auto; background:#ffffff; border-radius:13px; box-shadow:0 8px 22px rgba(0,0,0,.22);"></div>
 
-        <div style="font-size:13px; font-weight:800; line-height:18px; margin-top:17px;">Ticket ${ticketNo}</div>
-        <div style="font-family:'Courier New',monospace; font-size:12px; font-weight:700; line-height:16px; margin-top:3px; color:#E0E7FF;">#${ref}</div>
-        <div style="font-size:9.5px; font-weight:600; line-height:14px; margin-top:7px; color:#C7D2FE;">Booked ${escapeHtml(t.bookedAt)}</div>
+        <div style="font-size:13px; font-weight:800; line-height:18px; margin-top:14px;">Ticket ${ticketNo}</div>
+        <div style="font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:15px; margin-top:2px; color:#E0E7FF;">#${ref}</div>
+        <div style="font-family:'Courier New',monospace; font-size:10px; font-weight:800; line-height:14px; margin-top:4px; color:#FDE68A; background:rgba(217,119,6,0.3); border:1px solid rgba(245,158,11,0.5); border-radius:6px; padding:2px 8px; display:inline-block; letter-spacing:0.5px;">SEC: ${escapeHtml(t.ticketSecretCode)}</div>
+        <div style="font-size:9.5px; font-weight:600; line-height:14px; margin-top:5px; color:#C7D2FE;">Booked ${escapeHtml(t.bookedAt)}</div>
       </div>
 
     </div>
@@ -253,6 +257,8 @@ export async function downloadTicketPdf(data: TicketPdfData): Promise<void> {
     data.date || now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
   } ${data.time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
 
+  const baseSecretCode = data.secretCode || `NA-SEC-${Math.floor(100000 + Math.random() * 900000)}`;
+
   let pdf: jsPDF | null = null; // created on the first page, once its real height is known
 
   // Off-screen render target for html2canvas
@@ -271,15 +277,18 @@ export async function downloadTicketPdf(data: TicketPdfData): Promise<void> {
   try {
     for (let i = 0; i < total; i++) {
       const category = tickets[i];
+      const ticketSecretCode = total > 1 ? `${baseSecretCode}-${i + 1}` : baseSecretCode;
 
-      // Keep the QR payload small: the gate scanner should look the booking up by ref + ticket number.
+      // Gate scanner looks up the booking by secretCode + ref + ticket number.
       const qrDataUrl = await QRCode.toDataURL(
         JSON.stringify({
           event: EVENT_ID,
           ref: data.refNumber,
+          secretCode: ticketSecretCode,
           ticket: `${i + 1}/${total}`,
           type: category,
           name: data.customerName,
+          nic: data.nic || '',
         }),
         {
           errorCorrectionLevel: 'H',
@@ -295,6 +304,7 @@ export async function downloadTicketPdf(data: TicketPdfData): Promise<void> {
         number: i + 1,
         total,
         bookedAt,
+        ticketSecretCode,
       });
 
       await waitForAssets(container);

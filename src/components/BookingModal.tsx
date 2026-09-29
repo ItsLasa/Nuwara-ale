@@ -323,6 +323,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setIsGeneratingPdf(true);
       await downloadTicketPdf({
         refNumber: confirmedBooking?.refNumber || referenceNumber,
+        secretCode: confirmedBooking?.secretCode,
         customerName: confirmedBooking?.customerName || name.trim() || 'Valued Guest',
         nic: confirmedBooking?.nic || nic.trim() || undefined,
         contactNumber: confirmedBooking?.contactNumber || contactNumber.trim() || 'N/A',
@@ -958,6 +959,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <span className="text-gray-400 block">Venue:</span>
                   <span className="font-medium text-gray-800">Sahas Uyana - Kandy</span>
                 </div>
+                {confirmedBooking?.secretCode && (
+                  <div className="col-span-2 pt-2 border-t border-gray-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-gray-400 block text-[10px] uppercase font-semibold tracking-wider">Gate Secret Code</span>
+                      <span className="font-mono font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-xs">
+                        {confirmedBooking.secretCode}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-gray-400 italic">Encoded in Ticket QR</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-gray-200 flex justify-between items-center text-sm">

@@ -1,6 +1,7 @@
 export interface BookingRecord {
   id: string;
   refNumber: string;
+  secretCode?: string;
   customerName: string;
   nic?: string;
   date: string;
@@ -41,6 +42,7 @@ export const INITIAL_BOOKINGS: BookingRecord[] = [
   {
     id: '1',
     refNumber: 'REF-001',
+    secretCode: 'NA-SEC-729410',
     customerName: 'Kasun Perera',
     date: 'Oct 24, 2024',
     time: '07:30 PM',
@@ -54,6 +56,7 @@ export const INITIAL_BOOKINGS: BookingRecord[] = [
   {
     id: '2',
     refNumber: 'REF-002',
+    secretCode: 'NA-SEC-814925',
     customerName: 'Nimali Silva',
     date: 'Oct 25, 2024',
     time: '07:30 PM',
@@ -67,6 +70,7 @@ export const INITIAL_BOOKINGS: BookingRecord[] = [
   {
     id: '3',
     refNumber: 'REF-003',
+    secretCode: 'NA-SEC-639512',
     customerName: 'Devon Fernando',
     date: 'Oct 28, 2024',
     time: '07:30 PM',
@@ -80,6 +84,7 @@ export const INITIAL_BOOKINGS: BookingRecord[] = [
   {
     id: '4',
     refNumber: 'REF-004',
+    secretCode: 'NA-SEC-492108',
     customerName: 'Saman Jayakody',
     date: 'Nov 02, 2024',
     time: '07:30 PM',
@@ -93,6 +98,7 @@ export const INITIAL_BOOKINGS: BookingRecord[] = [
   {
     id: '5',
     refNumber: 'REF-005',
+    secretCode: 'NA-SEC-385019',
     customerName: 'Amali Perera',
     date: 'Nov 05, 2024',
     time: '07:30 PM',
@@ -106,6 +112,7 @@ export const INITIAL_BOOKINGS: BookingRecord[] = [
   {
     id: '6',
     refNumber: 'REF-006',
+    secretCode: 'NA-SEC-951240',
     customerName: 'Kavinda Selvan',
     date: 'Nov 08, 2024',
     time: '08:15 PM',
@@ -119,6 +126,7 @@ export const INITIAL_BOOKINGS: BookingRecord[] = [
   {
     id: '7',
     refNumber: 'REF-007',
+    secretCode: 'NA-SEC-120934',
     customerName: 'Dinesh Wickramasinghe',
     date: 'Nov 10, 2024',
     time: '06:45 PM',

@@ -63,6 +63,7 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
       setDownloadingTicketId(b.id);
       await downloadTicketPdf({
         refNumber: b.refNumber,
+        secretCode: b.secretCode,
         customerName: b.customerName,
         nic: b.nic,
         contactNumber: b.contactNumber,
@@ -105,6 +106,7 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
         !query ||
         b.customerName.toLowerCase().includes(query) ||
         b.refNumber.toLowerCase().includes(query) ||
+        (b.secretCode && b.secretCode.toLowerCase().includes(query)) ||
         (b.nic && b.nic.toLowerCase().includes(query)) ||
         (b.email && b.email.toLowerCase().includes(query)) ||
         b.contactNumber.includes(query);
@@ -144,6 +146,7 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
   const handleExportCSV = () => {
     const headers = [
       'Reference Number',
+      'Secret Code',
       'Customer Name',
       'NIC',
       'Contact Number',
@@ -160,6 +163,7 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
 
     const rows = filteredBookings.map((b) => [
       `"${b.refNumber}"`,
+      `"${b.secretCode || ''}"`,
       `"${b.customerName}"`,
       `"${b.nic || ''}"`,
       `"${b.contactNumber}"`,
@@ -221,6 +225,7 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
 
     onAddBooking({
       refNumber: `REF-${Math.floor(100000 + Math.random() * 900000)}`,
+      secretCode: `NA-SEC-${Math.floor(100000 + Math.random() * 900000)}`,
       customerName: manualForm.name.trim(),
       nic: manualForm.nic.trim(),
       contactNumber: manualForm.phone.trim(),
@@ -500,6 +505,11 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
                           </span>
                         )}
                       </div>
+                      {b.secretCode && (
+                        <div className="font-mono text-[10px] text-amber-900 bg-amber-50 border border-amber-300/80 rounded px-1.5 py-0.5 mt-1 inline-block">
+                          SEC: {b.secretCode}
+                        </div>
+                      )}
                     </td>
 
                     {/* Customer Name & NIC */}

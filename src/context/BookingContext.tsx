@@ -86,7 +86,10 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((b: BookingRecord, idx: number) => ({
+            ...b,
+            secretCode: b.secretCode || `NA-SEC-${String(100000 + idx * 11111 + Math.floor(Math.random() * 8888)).slice(0, 6)}`,
+          }));
         }
       }
     } catch (e) {
@@ -104,8 +107,10 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [bookings]);
 
   const addBooking = (data: Omit<BookingRecord, 'id' | 'createdAt'>): BookingRecord => {
+    const generatedSecret = `NA-SEC-${Math.floor(100000 + Math.random() * 900000)}`;
     const newRecord: BookingRecord = {
       ...data,
+      secretCode: data.secretCode || generatedSecret,
       id: `booking-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       createdAt: new Date().toISOString(),
     };

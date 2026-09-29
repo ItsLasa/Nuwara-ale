@@ -37,6 +37,7 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
       setIsDownloadingPdf(true);
       await downloadTicketPdf({
         refNumber: booking.refNumber,
+        secretCode: booking.secretCode,
         customerName: booking.customerName,
         nic: booking.nic,
         contactNumber: booking.contactNumber,
@@ -94,30 +95,41 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
         {/* Content */}
         <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
           {/* Customer & Booking Details */}
-          <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-[#0B1326]/70 border border-slate-800 text-sm">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Customer Details</span>
-              <p className="font-bold text-white mt-1 text-base">{booking.customerName}</p>
-              {booking.nic && (
-                <p className="text-xs text-slate-300 font-mono mt-0.5">NIC: {booking.nic}</p>
-              )}
-              <p className="text-xs text-slate-400 mt-0.5">{booking.email || 'No email provided'}</p>
-              <p className="text-xs text-slate-300 font-mono mt-0.5">Phone: {booking.contactNumber}</p>
+          <div className="p-4 rounded-xl bg-[#0B1326]/70 border border-slate-800 text-sm space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Customer Details</span>
+                <p className="font-bold text-white mt-1 text-base">{booking.customerName}</p>
+                {booking.nic && (
+                  <p className="text-xs text-slate-300 font-mono mt-0.5">NIC: {booking.nic}</p>
+                )}
+                <p className="text-xs text-slate-400 mt-0.5">{booking.email || 'No email provided'}</p>
+                <p className="text-xs text-slate-300 font-mono mt-0.5">Phone: {booking.contactNumber}</p>
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Package & Pricing</span>
+                <p className="font-semibold text-white mt-1">{booking.ticketType}</p>
+                <p className="text-xs text-slate-400">Total: {booking.ticketQty} Ticket(s)</p>
+                {booking.ticketBreakdown && (
+                  <div className="text-[11px] text-slate-400 space-x-2 mt-0.5">
+                    {booking.ticketBreakdown.vip > 0 && <span>VIP: {booking.ticketBreakdown.vip}</span>}
+                    {booking.ticketBreakdown.general > 0 && <span>Gen: {booking.ticketBreakdown.general}</span>}
+                    {booking.ticketBreakdown.earlybird > 0 && <span>EB: {booking.ticketBreakdown.earlybird}</span>}
+                  </div>
+                )}
+                <p className="text-base font-extrabold text-[#D4AF37] mt-1">Rs. {booking.totalPrice.toLocaleString()}</p>
+                <span className="text-[11px] text-slate-400 block mt-1">Submitted: {booking.date} at {booking.time}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Package & Pricing</span>
-              <p className="font-semibold text-white mt-1">{booking.ticketType}</p>
-              <p className="text-xs text-slate-400">Total: {booking.ticketQty} Ticket(s)</p>
-              {booking.ticketBreakdown && (
-                <div className="text-[11px] text-slate-400 space-x-2 mt-0.5">
-                  {booking.ticketBreakdown.vip > 0 && <span>VIP: {booking.ticketBreakdown.vip}</span>}
-                  {booking.ticketBreakdown.general > 0 && <span>Gen: {booking.ticketBreakdown.general}</span>}
-                  {booking.ticketBreakdown.earlybird > 0 && <span>EB: {booking.ticketBreakdown.earlybird}</span>}
-                </div>
-              )}
-              <p className="text-base font-extrabold text-[#D4AF37] mt-1">Rs. {booking.totalPrice.toLocaleString()}</p>
-              <span className="text-[11px] text-slate-400 block mt-1">Submitted: {booking.date} at {booking.time}</span>
-            </div>
+
+            {booking.secretCode && (
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                <span className="text-xs text-slate-400">Gate Secret Security Code:</span>
+                <span className="font-mono text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded">
+                  {booking.secretCode}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Payment Proof Slip preview */}
