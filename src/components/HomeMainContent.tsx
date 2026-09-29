@@ -7,9 +7,9 @@ interface HomeMainContentProps {
 }
 
 export const HomeMainContent: React.FC<HomeMainContentProps> = ({ onBookTicket }) => {
-  const [selectedPkgId, setSelectedPkgId] = useState<'vip' | 'general' | 'earlybird'>('vip');
+  const [selectedPkgId, setSelectedPkgId] = useState<string>(EVENT_DATA.packages[0]?.id || 'vip');
 
-  const selectedPackage = EVENT_DATA.packages.find((p) => p.id === selectedPkgId)!;
+  const selectedPackage = EVENT_DATA.packages.find((p) => p.id === selectedPkgId) || EVENT_DATA.packages[0];
 
   return (
     <div className="w-full bg-[#FFFFFF] py-12 px-4 sm:px-6 lg:px-8">
