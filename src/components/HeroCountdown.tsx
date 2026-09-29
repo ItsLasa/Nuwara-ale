@@ -6,20 +6,15 @@ export const HeroCountdown: React.FC = () => {
   const timeLeft = useCountdown(EVENT_DATA.countdownTarget);
 
   return (
-    <div className="relative w-full overflow-hidden">
-      {/* Figma Hero Rectangle: 1512x453 with hero banner image */}
-      <div className="relative w-full h-[400px] md:h-[453px] flex items-center justify-center">
+    <div className="relative w-full overflow-hidden bg-white">
+      {/* Responsive Event Banner Container (TC-05) */}
+      <div className="relative w-full flex items-center justify-center bg-[#071A3D]">
         <img
           src={EVENT_DATA.heroBannerImage}
-          alt="Event Hero Banner"
-          className="absolute inset-0 w-full h-full object-cover object-center"
+          alt="EEBM Nuwara Aale Event Concert Poster Banner"
+          className="w-full h-auto max-h-[550px] sm:max-h-[600px] object-contain block mx-auto"
+          loading="eager"
         />
-        
-        {/* Subtle Darkening Overlay for text contrast */}
-        <div className="absolute inset-0 bg-black/25" />
-
-        {/* Centered Countdown Box matching Figma EL-378b8db1 */}
-        
       </div>
 
       <div className="relative z-10 text-center px-4 py-3">
