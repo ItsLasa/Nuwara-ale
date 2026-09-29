@@ -9,8 +9,18 @@ export const Footer: React.FC<FooterProps> = ({ }) => {
   return (
     <footer className="w-full bg-[#071A3D] border-t border-white/10 py-4 px-6 text-white">
       <div className="max-w-[1366px] mx-auto flex flex-col  sm:flex-row items-center justify-center gap-3 text-center sm:text-left">
-        <p className="font-hanken font-normal  text-xs sm:text-sm text-gray-200 tracking-wide">
-          © 2026 EVER EFFICIENT BUSINESS MANAGEMENT(Pvt) Ltd. All Rights Reserved.
+        <p className="font-hanken font-normal text-xs sm:text-sm text-gray-200 tracking-wide">
+          © 2026{' '}
+          <a
+            href="https://everefficient.lk/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white hover:text-amber-400 underline underline-offset-4 decoration-amber-400/50 hover:decoration-amber-400 transition-colors font-semibold"
+            title="Ever Efficient Business Management (Pvt) Ltd Official Website"
+          >
+            Ever Efficient Business Management (Pvt) Ltd
+          </a>
+          . All Rights Reserved.
         </p>
         
         {/* {onAdminClick && (
