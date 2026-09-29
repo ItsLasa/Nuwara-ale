@@ -202,7 +202,7 @@ function renderTicketHtml(t: TicketRenderInput): string {
           Admits one person. Bring this ticket and the original NIC, driving licence or passport you booked with.
           Tickets are non-refundable and non-transferable. Outside alcohol, glass bottles, laser pointers and hazardous items are not allowed.
           <div style="margin-top:3px; color:#B8C5DA;">
-            Help: ${SUPPORT_LINES.map((n) => `<span style="margin-right:12px;">${n}</span>`).join('')}
+            Contact Us: ${SUPPORT_LINES.map((n) => `<span style="margin-right:12px;">${n}</span>`).join('')}
           </div>
         </div>
       </div>
