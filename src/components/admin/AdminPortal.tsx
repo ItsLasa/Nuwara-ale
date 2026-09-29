@@ -29,22 +29,35 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     pendingCount,
   } = useBookings();
 
+  // Mobile Sidebar Drawer state (TC-12)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   // Modals state
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [verifyingBooking, setVerifyingBooking] = useState<BookingRecord | null>(null);
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    // Global search: automatically switch to bookings tab to show filtered results immediately (TC-08)
+    if (query.trim().length > 0 && currentTab !== 'bookings') {
+      setCurrentTab('bookings');
+    }
+  };
 
   const handleUpdateStatus = (id: string, newStatus: BookingRecord['status'], adminNotes?: string) => {
     updateBookingStatus(id, newStatus, adminNotes);
   };
 
   return (
-    <div className="flex min-h-screen bg-[#06122B] text-slate-100 font-sans">
-      {/* Fixed/Sticky Sidebar (Figma #58:4400) */}
+    <div className="flex min-h-screen bg-[#07132B] text-slate-100 font-sans">
+      {/* Fixed/Sticky Sidebar on Desktop & Drawer on Mobile (TC-12) */}
       <AdminSidebar
         activeTab={currentTab}
         onSelectTab={setCurrentTab}
         onLogout={() => setIsLogoutOpen(true)}
         onGoToPublic={onSwitchToPublic}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
@@ -52,13 +65,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         {/* Top Navbar (Figma #58:4154) */}
         <AdminTopNav
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           pendingCount={pendingCount}
           onNotificationClick={() => setCurrentTab('bookings')}
+          onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
         />
 
-        {/* View Switcher */}
-        <main className="flex-1 p-8 overflow-y-auto">
+        {/* View Switcher with responsive padding (TC-12) */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {currentTab === 'dashboard' && (
             <AdminDashboardView
               bookings={bookings}
