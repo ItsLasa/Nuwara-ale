@@ -1,9 +1,61 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Ticket, ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Upload, CheckCircle2, MessageCircle, Download, Loader2 } from 'lucide-react';
+import { X, Ticket, ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Upload, CheckCircle2, MessageCircle, Download, Loader2, AlertCircle } from 'lucide-react';
 import { TicketPackage, EVENT_DATA } from '../data/eventData';
 import { useBookings } from '../context/BookingContext';
 import { BookingRecord } from '../data/adminData';
 import { downloadTicketPdf } from '../utils/ticketPdfGenerator';
+
+/**
+ * Checks whether an uploaded image canvas is effectively blank
+ * (e.g. solid white, solid black, entirely transparent, or uniform single color without receipt content)
+ */
+const isCanvasImageBlank = (ctx: CanvasRenderingContext2D, width: number, height: number): boolean => {
+  try {
+    const imgData = ctx.getImageData(0, 0, width, height).data;
+    const totalPixels = width * height;
+    if (totalPixels === 0) return true;
+
+    const firstR = imgData[0];
+    const firstG = imgData[1];
+    const firstB = imgData[2];
+    const firstA = imgData[3];
+
+    let allTransparent = true;
+    let allSameColor = true;
+
+    // Sample across the image (up to 1500 pixels) to detect contrast/text/lines
+    const step = Math.max(1, Math.floor(totalPixels / 1500));
+    for (let i = 0; i < totalPixels; i += step) {
+      const idx = i * 4;
+      const r = imgData[idx];
+      const g = imgData[idx + 1];
+      const b = imgData[idx + 2];
+      const a = imgData[idx + 3];
+
+      if (a > 15) {
+        allTransparent = false;
+      }
+
+      // Check difference against first pixel - valid slips have text, borders, stamps
+      if (
+        Math.abs(r - firstR) > 12 ||
+        Math.abs(g - firstG) > 12 ||
+        Math.abs(b - firstB) > 12 ||
+        Math.abs(a - firstA) > 20
+      ) {
+        allSameColor = false;
+        break;
+      }
+    }
+
+    if (allTransparent) return true;
+    if (allSameColor) return true;
+
+    return false;
+  } catch {
+    return false;
+  }
+};
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -49,6 +101,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // Slip file for Step 2
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [slipPreviewUrl, setSlipPreviewUrl] = useState<string | null>(null);
+  const [slipError, setSlipError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Confirmed booking saved in context
@@ -59,6 +112,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setStep(1);
+      setSlipFile(null);
+      setSlipPreviewUrl(null);
+      setSlipError(null);
       const randomRef = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
       setReferenceNumber(randomRef);
 
@@ -114,15 +170,33 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   const handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSlipError(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setSlipFile(file);
+
+      // Check for zero-byte or empty file
+      if (file.size === 0) {
+        setSlipError('The selected file is empty (0 bytes). Please upload a valid payment slip.');
+        setSlipFile(null);
+        setSlipPreviewUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
 
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (event) => {
           const img = new Image();
           img.onload = () => {
+            // Check for suspiciously tiny dimensions
+            if (img.width < 50 || img.height < 50) {
+              setSlipError('The selected image is too small to be a payment slip. Please upload a clear photo or screenshot.');
+              setSlipFile(null);
+              setSlipPreviewUrl(null);
+              if (fileInputRef.current) fileInputRef.current.value = '';
+              return;
+            }
+
             const canvas = document.createElement('canvas');
             const maxDim = 800;
             let w = img.width;
@@ -138,24 +212,64 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             }
             canvas.width = w;
             canvas.height = h;
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
             if (ctx) {
               ctx.drawImage(img, 0, 0, w, h);
-              setSlipPreviewUrl(canvas.toDataURL('image/jpeg', 0.82));
+
+              // Detect blank / solid single-color images
+              if (isCanvasImageBlank(ctx, w, h)) {
+                setSlipError('The uploaded image appears to be blank. A blank slip cannot be used to confirm booking. Please upload a valid payment receipt.');
+                setSlipFile(null);
+                setSlipPreviewUrl(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                return;
+              }
+
+              setSlipFile(file);
+              setSlipPreviewUrl(canvas.toDataURL('image/jpeg', 0.85));
             } else {
+              setSlipFile(file);
               setSlipPreviewUrl(event.target?.result as string);
             }
+          };
+          img.onerror = () => {
+            setSlipError('Failed to read image file. Please upload a valid image.');
+            setSlipFile(null);
+            setSlipPreviewUrl(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
           };
           img.src = event.target?.result as string;
         };
         reader.readAsDataURL(file);
       } else {
+        // PDF or other documents
+        if (file.size < 100) {
+          setSlipError('The selected PDF file is too small or invalid. Please upload a valid payment slip.');
+          setSlipFile(null);
+          setSlipPreviewUrl(null);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          return;
+        }
+        setSlipFile(file);
         setSlipPreviewUrl(null);
       }
     }
   };
 
   const handleConfirmBooking = () => {
+    // Slip upload is strictly mandatory before confirming booking
+    if (!slipFile) {
+      setSlipError('Bank payment slip upload is mandatory. You cannot confirm your booking without uploading your payment slip.');
+      return;
+    }
+    if (slipFile.size === 0) {
+      setSlipError('The uploaded slip file is empty. Please upload a valid bank payment slip.');
+      return;
+    }
+    if (slipError) {
+      return;
+    }
+
     const pkgLabels: string[] = [];
     if (quantities.vip > 0) pkgLabels.push(`VIP (${quantities.vip})`);
     if (quantities.general > 0) pkgLabels.push(`General (${quantities.general})`);
@@ -198,6 +312,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setStep(1);
     setSlipFile(null);
     setSlipPreviewUrl(null);
+    setSlipError(null);
     setConfirmedBooking(null);
     setIsGeneratingPdf(false);
     onClose();
@@ -604,13 +719,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             {/* WhatsApp Notice matching Figma #26:3594 */}
             <div className="p-4 bg-[#FEF2F2] border-l-4 border-red-500 rounded-r-lg text-xs text-red-700 font-medium">
-              Important: Please send your bank slip to our WhatsApp with your REF-Number to confirm your booking.
+              Important: Please upload your bank transfer slip or deposit receipt below to confirm your booking. Also send your bank slip to our WhatsApp with your REF-Number.
             </div>
+
+            {/* Slip validation error alert */}
+            {slipError && (
+              <div className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-300 rounded-xl text-red-700 text-xs font-medium animate-fadeIn">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-bold block text-red-800">Payment Slip Required</span>
+                  <span>{slipError}</span>
+                </div>
+              </div>
+            )}
 
             {/* Upload Area matching Figma #64:9119 */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-[#071A3D]/40 hover:border-[#071A3D] rounded-xl p-6 text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-slate-50"
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                slipError
+                  ? 'border-red-400 bg-red-50/30 hover:bg-red-50/50 ring-2 ring-red-200'
+                  : slipFile
+                  ? 'border-emerald-500 bg-emerald-50/20 hover:bg-emerald-50/40'
+                  : 'border-[#071A3D]/40 hover:border-[#071A3D] bg-slate-50/50 hover:bg-slate-50'
+              }`}
             >
               <input
                 ref={fileInputRef}
@@ -631,7 +763,23 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       <CheckCircle2 className="w-4 h-4" />
                       <span>{slipFile?.name || 'Slip uploaded successfully'}</span>
                     </div>
-                    <span className="text-[11px] text-gray-400">Click to replace file</span>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-[11px] text-gray-400">Click to replace file</span>
+                      <span className="text-gray-300">•</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSlipFile(null);
+                          setSlipPreviewUrl(null);
+                          setSlipError(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="text-[11px] text-red-500 hover:text-red-700 font-semibold hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 ) : slipFile ? (
                   <div className="flex flex-col items-center gap-1.5 text-emerald-600 font-semibold text-sm">
@@ -639,18 +787,42 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       <CheckCircle2 className="w-6 h-6 text-emerald-600" />
                     </div>
                     <span>{slipFile.name}</span>
-                    <span className="text-[11px] text-gray-400 font-normal">Click to replace file</span>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-[11px] text-gray-400 font-normal">Click to replace file</span>
+                      <span className="text-gray-300">•</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSlipFile(null);
+                          setSlipPreviewUrl(null);
+                          setSlipError(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="text-[11px] text-red-500 hover:text-red-700 font-semibold hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
                     <div className="w-10 h-10 rounded-full bg-[#071A3D]/10 flex items-center justify-center text-[#071A3D]">
                       <Upload className="w-5 h-5" />
                     </div>
-                    <span className="font-bold text-base text-[#071A3D]">
-                      Upload Bank Slip
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-base text-[#071A3D]">
+                        Upload Bank Slip
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold uppercase tracking-wider">
+                        Required *
+                      </span>
+                    </div>
                     <span className="text-xs text-gray-500">
                       Click to browse or drag and drop slip file here (PDF, JPG, PNG)
+                    </span>
+                    <span className="text-[11px] text-amber-600 font-medium">
+                      ⚠️ Booking cannot be confirmed without a valid payment slip
                     </span>
                   </>
                 )}
@@ -663,23 +835,44 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <p className="text-xs italic text-gray-500">
               By clicking 'Confirm Booking', you agree that your reservation is subject to verification of the payment slip.
             </p>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="inline-flex items-center gap-1.5 px-5 py-2 bg-white hover:bg-gray-100 text-[#071A3D] text-sm font-semibold rounded-lg border border-[#071A3D] transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Back</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmBooking}
-                className="inline-flex items-center gap-1.5 px-6 py-2 bg-[#071A3D] hover:bg-[#071A3D]/90 text-white text-sm font-bold rounded-lg shadow-md transition-all active:scale-[0.98]"
-              >
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Confirm Booking</span>
-              </button>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div>
+                {!slipFile ? (
+                  <span className="text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    Slip upload required to confirm booking
+                  </span>
+                ) : (
+                  <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    Payment slip attached
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSlipError(null);
+                    setStep(1);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-white hover:bg-gray-100 text-[#071A3D] text-sm font-semibold rounded-lg border border-[#071A3D] transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBooking}
+                  disabled={!slipFile || !!slipError}
+                  title={!slipFile ? 'Please upload your payment slip before confirming' : 'Confirm your booking'}
+                  className="inline-flex items-center gap-1.5 px-6 py-2 bg-[#071A3D] hover:bg-[#071A3D]/90 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#071A3D] text-white text-sm font-bold rounded-lg shadow-md transition-all active:scale-[0.98]"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Confirm Booking</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
