@@ -95,7 +95,8 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
     .filter((b) => {
       const matchesStatus =
         statusFilter === 'all' ||
-        b.status.toLowerCase().replace(/\s+/g, '') === statusFilter.toLowerCase().replace(/\s+/g, '');
+        b.status.toLowerCase().replace(/[\s_-]+/g, '') === statusFilter.toLowerCase().replace(/[\s_-]+/g, '') ||
+        (statusFilter.toLowerCase().includes('verif') && b.status.toLowerCase().includes('verif'));
       const matchesPackage =
         packageFilter === 'all' ||
         b.ticketType.toLowerCase().includes(packageFilter.toLowerCase());
@@ -253,21 +254,24 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
 
   const pendingVerificationCount = bookings.filter((b) => b.status === 'Pending verification').length;
   const confirmedCount = bookings.filter((b) => b.status === 'Confirmed').length;
+  const paidCount = bookings.filter((b) => b.status === 'Paid').length;
+  const pendingCount = bookings.filter((b) => b.status === 'Pending').length;
+  const rejectedCount = bookings.filter((b) => b.status === 'Rejected').length;
 
   return (
     <div className="space-y-6">
-      {/* Header with Title & Action CTAs */}
+      {/* Header with Title & Action CTAs (TC-21) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="font-playfair font-bold text-3xl text-[#071A3D]">
-              Bookings Management
+            <h1 className="font-playfair font-bold text-2xl sm:text-3xl text-white tracking-tight">
+              Booking Management
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-jakarta font-bold bg-[#071A3D]/10 text-[#071A3D]">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-jakarta font-bold bg-white/10 text-amber-400 border border-white/20">
               {bookings.length} Total Records
             </span>
           </div>
-          <p className="font-hanken text-sm text-gray-500 mt-0.5">
+          <p className="font-hanken text-xs sm:text-sm text-slate-300 mt-1">
             Manage attendee registrations, review uploaded payment slips, and verify gate admissions.
           </p>
         </div>
@@ -287,34 +291,34 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
           {onAddBooking && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-[#071A3D] hover:bg-[#121258] text-white font-jakarta font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm active:scale-[0.98]"
+              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#071A3D] font-jakarta font-bold text-xs transition-colors flex items-center gap-1.5 shadow-md active:scale-[0.98]"
             >
-              <Plus className="w-4 h-4 text-[#D4AF37]" />
+              <Plus className="w-4 h-4 text-[#071A3D]" />
               <span>Manual Booking</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Quick Status Filter Pills */}
+      {/* Quick Status Filter Pills for all 5 statuses (TC-13) */}
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setStatusFilter('all')}
           className={`px-3 py-1.5 rounded-xl text-xs font-jakarta font-semibold transition-all ${
             statusFilter === 'all'
-              ? 'bg-[#071A3D] text-white shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              ? 'bg-amber-400 text-[#071A3D] font-bold shadow-md'
+              : 'bg-[#071A3D] border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white'
           }`}
         >
           All Bookings ({bookings.length})
         </button>
 
         <button
-          onClick={() => setStatusFilter('verification')}
+          onClick={() => setStatusFilter('Pending verification')}
           className={`px-3 py-1.5 rounded-xl text-xs font-jakarta font-semibold transition-all flex items-center gap-1.5 ${
-            statusFilter === 'verification' || statusFilter === 'Pending verification'
-              ? 'bg-amber-500 text-white shadow-sm ring-1 ring-amber-500'
-              : 'bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100/80'
+            statusFilter === 'Pending verification' || statusFilter === 'verification'
+              ? 'bg-amber-500 text-white shadow-md ring-1 ring-amber-400'
+              : 'bg-amber-950/40 border border-amber-500/30 text-amber-300 hover:bg-amber-900/50'
           }`}
         >
           <Clock className="w-3.5 h-3.5" />
@@ -322,11 +326,11 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
         </button>
 
         <button
-          onClick={() => setStatusFilter('confirmed')}
+          onClick={() => setStatusFilter('Confirmed')}
           className={`px-3 py-1.5 rounded-xl text-xs font-jakarta font-semibold transition-all flex items-center gap-1.5 ${
-            statusFilter === 'confirmed'
-              ? 'bg-emerald-600 text-white shadow-sm'
-              : 'bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100/80'
+            statusFilter === 'Confirmed' || statusFilter === 'confirmed'
+              ? 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400'
+              : 'bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/50'
           }`}
         >
           <CheckCircle className="w-3.5 h-3.5" />
@@ -334,33 +338,58 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
         </button>
 
         <button
-          onClick={() => setStatusFilter('paid')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-jakarta font-semibold transition-all ${
-            statusFilter === 'paid'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100/80'
+          onClick={() => setStatusFilter('Paid')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-jakarta font-semibold transition-all flex items-center gap-1.5 ${
+            statusFilter === 'Paid' || statusFilter === 'paid'
+              ? 'bg-blue-600 text-white shadow-md ring-1 ring-blue-400'
+              : 'bg-blue-950/40 border border-blue-500/30 text-blue-300 hover:bg-blue-900/50'
           }`}
         >
-          Paid
+          <AlertCircle className="w-3.5 h-3.5" />
+          <span>Paid ({paidCount})</span>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('Pending')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-jakarta font-semibold transition-all flex items-center gap-1.5 ${
+            statusFilter === 'Pending' || statusFilter === 'pending'
+              ? 'bg-yellow-600 text-white shadow-md ring-1 ring-yellow-400'
+              : 'bg-yellow-950/40 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-900/50'
+          }`}
+        >
+          <Clock className="w-3.5 h-3.5" />
+          <span>Pending ({pendingCount})</span>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('Rejected')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-jakarta font-semibold transition-all flex items-center gap-1.5 ${
+            statusFilter === 'Rejected' || statusFilter === 'rejected'
+              ? 'bg-rose-600 text-white shadow-md ring-1 ring-rose-400'
+              : 'bg-rose-950/40 border border-rose-500/30 text-rose-300 hover:bg-rose-900/50'
+          }`}
+        >
+          <Ban className="w-3.5 h-3.5" />
+          <span>Rejected ({rejectedCount})</span>
         </button>
       </div>
 
       {/* Filter & Search Bar */}
       <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-          {/* Status Filter Dropdown */}
-          <div className="relative min-w-[150px]">
+          {/* Status Filter Dropdown (TC-13) */}
+          <div className="relative min-w-[170px]">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-jakarta font-semibold text-gray-800 focus:outline-none focus:border-[#071A3D]"
             >
               <option value="all">All Statuses</option>
-              <option value="verification">Pending verification</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Pending</option>
-              <option value="rejected">Rejected</option>
+              <option value="Pending verification">Pending Verification</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Paid">Paid</option>
+              <option value="Pending">Pending</option>
+              <option value="Rejected">Rejected</option>
             </select>
           </div>
 
@@ -672,22 +701,22 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
         </div>
       </div>
 
-      {/* Manual Add Booking Modal for Admin Box Office */}
+      {/* Manual Add Booking Modal for Admin Box Office (TC-19) */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white text-gray-900 border border-gray-200 rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <div>
                 <h3 className="font-playfair font-bold text-xl text-[#071A3D]">
                   New Manual Booking
                 </h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 mt-0.5">
                   Record walk-in ticket purchases or hotline telephone reservations
                 </p>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="p-1 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+                className="p-1 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -696,7 +725,7 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
             <form onSubmit={handleCreateManualBooking} className="space-y-3.5">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
+                  <label className="text-xs font-semibold text-gray-800 block mb-1">
                     Customer Name *
                   </label>
                   <input
@@ -705,11 +734,11 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
                     placeholder="e.g. Ruwan Jayasuriya"
                     value={manualForm.name}
                     onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-[#071A3D]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#071A3D] focus:border-[#071A3D]"
                   />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
+                  <label className="text-xs font-semibold text-gray-800 block mb-1">
                     NIC / Passport *
                   </label>
                   <input
@@ -718,14 +747,14 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
                     placeholder="e.g. 199320501234"
                     value={manualForm.nic}
                     onChange={(e) => setManualForm({ ...manualForm, nic: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-[#071A3D]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#071A3D] focus:border-[#071A3D]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
+                  <label className="text-xs font-semibold text-gray-800 block mb-1">
                     Contact Phone *
                   </label>
                   <input
@@ -734,11 +763,11 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
                     placeholder="0771234567"
                     value={manualForm.phone}
                     onChange={(e) => setManualForm({ ...manualForm, phone: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-[#071A3D]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#071A3D] focus:border-[#071A3D]"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
+                  <label className="text-xs font-semibold text-gray-800 block mb-1">
                     Email Address
                   </label>
                   <input
@@ -746,20 +775,20 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
                     placeholder="customer@email.com"
                     value={manualForm.email}
                     onChange={(e) => setManualForm({ ...manualForm, email: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-[#071A3D]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#071A3D] focus:border-[#071A3D]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
+                  <label className="text-xs font-semibold text-gray-800 block mb-1">
                     Package Tier *
                   </label>
                   <select
                     value={manualForm.packageId}
                     onChange={(e) => setManualForm({ ...manualForm, packageId: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-[#071A3D]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-[#071A3D] focus:border-[#071A3D]"
                   >
                     <option value="vip">VIP Tickets (5,000 LKR)</option>
                     <option value="general">General Tickets (3,000 LKR)</option>
@@ -767,7 +796,7 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
+                  <label className="text-xs font-semibold text-gray-800 block mb-1">
                     Ticket Quantity *
                   </label>
                   <input
@@ -777,41 +806,43 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
                     required
                     value={manualForm.qty}
                     onChange={(e) => setManualForm({ ...manualForm, qty: Math.max(1, Number(e.target.value)) })}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-[#071A3D]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-[#071A3D] focus:border-[#071A3D]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
+                  <label className="text-xs font-semibold text-gray-800 block mb-1">
                     Initial Status
                   </label>
                   <select
                     value={manualForm.status}
                     onChange={(e) => setManualForm({ ...manualForm, status: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-[#071A3D]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-[#071A3D] focus:border-[#071A3D]"
                   >
                     <option value="Confirmed">Confirmed (Paid)</option>
                     <option value="Paid">Paid (Pending Ticket)</option>
                     <option value="Pending verification">Pending verification</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Rejected">Rejected</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
+                  <label className="text-xs font-semibold text-gray-800 block mb-1">
                     Admin / Staff Notes
                   </label>
                   <input
                     type="text"
                     value={manualForm.notes}
                     onChange={(e) => setManualForm({ ...manualForm, notes: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-[#071A3D]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#071A3D] focus:border-[#071A3D]"
                   />
                 </div>
               </div>
 
-              <div className="p-3 bg-gray-50 rounded-xl flex items-center justify-between text-xs">
-                <span className="text-gray-600 font-medium">Estimated Total Price:</span>
+              <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between text-xs">
+                <span className="text-gray-700 font-medium">Estimated Total Price:</span>
                 <span className="font-bold text-sm text-[#071A3D]">
                   Rs.{' '}
                   {(
@@ -826,13 +857,13 @@ export const AdminBookingsView: React.FC<AdminBookingsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#071A3D] text-white text-xs font-bold hover:bg-[#121258] shadow-md"
+                  className="px-5 py-2 rounded-xl bg-[#071A3D] text-white text-xs font-bold hover:bg-[#121258] shadow-md transition-all active:scale-[0.98]"
                 >
                   Save Booking Record
                 </button>

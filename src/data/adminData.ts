@@ -103,6 +103,33 @@ export const INITIAL_BOOKINGS: BookingRecord[] = [
     email: 'amali@gmail.com',
     totalPrice: 4000,
   },
+  {
+    id: '6',
+    refNumber: 'REF-006',
+    customerName: 'Kavinda Selvan',
+    date: 'Nov 08, 2024',
+    time: '08:15 PM',
+    status: 'Paid',
+    ticketType: 'VIP Tickets',
+    ticketQty: 1,
+    contactNumber: '0776789012',
+    email: 'kavinda.s@gmail.com',
+    totalPrice: 5000,
+  },
+  {
+    id: '7',
+    refNumber: 'REF-007',
+    customerName: 'Dinesh Wickramasinghe',
+    date: 'Nov 10, 2024',
+    time: '06:45 PM',
+    status: 'Rejected',
+    ticketType: 'General Tickets',
+    ticketQty: 3,
+    contactNumber: '0777890123',
+    email: 'dinesh.w@gmail.com',
+    totalPrice: 9000,
+    adminNotes: 'Invalid payment slip attached.',
+  },
 ];
 
 export const INITIAL_SERVICES: IncludedService[] = [
