@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BookingRecord, INITIAL_BOOKINGS } from '../data/adminData';
+import { EVENT_DATA, TicketPackage } from '../data/eventData';
 
 interface BookingStats {
   totalRevenue: number;
@@ -18,13 +19,67 @@ interface BookingContextType {
   resetBookings: () => void;
   stats: BookingStats;
   pendingCount: number;
+  packages: TicketPackage[];
+  updatePackage: (id: string, updated: Partial<TicketPackage>) => void;
+  addPackage: (pkg: TicketPackage) => void;
+  deletePackage: (id: string) => void;
 }
 
 const STORAGE_KEY = 'nuwara_ale_event_bookings_v1';
+const PACKAGES_STORAGE_KEY = 'nuwara_ale_event_packages_v1';
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [packages, setPackages] = useState<TicketPackage[]>(() => {
+    try {
+      const saved = localStorage.getItem(PACKAGES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          EVENT_DATA.packages = parsed;
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load packages from localStorage:', e);
+    }
+    return EVENT_DATA.packages;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PACKAGES_STORAGE_KEY, JSON.stringify(packages));
+      EVENT_DATA.packages = packages;
+    } catch (e) {
+      console.warn('Failed to save packages to localStorage:', e);
+    }
+  }, [packages]);
+
+  const updatePackage = (id: string, updated: Partial<TicketPackage>) => {
+    setPackages((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, ...updated } : p));
+      EVENT_DATA.packages = next;
+      return next;
+    });
+  };
+
+  const addPackage = (pkg: TicketPackage) => {
+    setPackages((prev) => {
+      const next = [...prev, pkg];
+      EVENT_DATA.packages = next;
+      return next;
+    });
+  };
+
+  const deletePackage = (id: string) => {
+    setPackages((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      EVENT_DATA.packages = next;
+      return next;
+    });
+  };
+
   const [bookings, setBookings] = useState<BookingRecord[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -149,6 +204,10 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         resetBookings,
         stats,
         pendingCount,
+        packages,
+        updatePackage,
+        addPackage,
+        deletePackage,
       }}
     >
       {children}
