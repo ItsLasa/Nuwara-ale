@@ -6,7 +6,7 @@ export interface Artist {
 }
 
 export interface TicketPackage {
-  id: 'vip' | 'general' | 'earlybird';
+  id: string;
   name: string;
   price: number;
   currency: string;
