@@ -11,7 +11,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 function isAdminRoute(): boolean {
   if (typeof window === 'undefined') return false;
-  const path = window.location.pathname.toLowerCase();
+  const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
   const hash = window.location.hash.toLowerCase();
   const host = window.location.hostname.toLowerCase();
   const searchParams = new URLSearchParams(window.location.search);
@@ -23,6 +23,7 @@ function isAdminRoute(): boolean {
     hash === '#admin' ||
     hash.startsWith('#/admin/') ||
     searchParams.get('view') === 'admin' ||
+    searchParams.has('admin') ||
     host.startsWith('admin.')
   );
 }
