@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { HeroCountdown } from './components/HeroCountdown';
 import { HomeMainContent } from './components/HomeMainContent';
 import { Footer } from './components/Footer';
@@ -6,18 +6,75 @@ import { BookingModal } from './components/BookingModal';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { LoginModal } from './components/admin/LoginModal';
 import { TicketPackage } from './data/eventData';
-import { ShieldCheck, Eye } from 'lucide-react';
 import { BookingProvider } from './context/BookingContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+function isAdminRoute(): boolean {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  const host = window.location.hostname.toLowerCase();
+  const searchParams = new URLSearchParams(window.location.search);
+
+  return (
+    path === '/admin' ||
+    path.startsWith('/admin/') ||
+    hash === '#/admin' ||
+    hash === '#admin' ||
+    hash.startsWith('#/admin/') ||
+    searchParams.get('view') === 'admin' ||
+    host.startsWith('admin.')
+  );
+}
+
+function navigateTo(path: string) {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname !== path) {
+    window.history.pushState(null, '', path);
+  }
+}
+
 function AppContent() {
-  const [currentView, setCurrentView] = useState<'public' | 'admin'>('public');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem('nuwara_admin_auth') === 'true';
+  });
+
+  const [currentView, setCurrentView] = useState<'public' | 'admin'>(() => {
+    return isAdminRoute() ? 'admin' : 'public';
+  });
+
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(() => {
+    return isAdminRoute() && !(sessionStorage.getItem('nuwara_admin_auth') === 'true');
+  });
 
   // Booking Modal State
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<TicketPackage | null>(null);
+
+  // Synchronize route changes (popstate / hashchange)
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const isAdm = isAdminRoute();
+      if (isAdm) {
+        setCurrentView('admin');
+        const auth = sessionStorage.getItem('nuwara_admin_auth') === 'true';
+        setIsAuthenticated(auth);
+        setIsLoginModalOpen(!auth);
+      } else {
+        setCurrentView('public');
+        setIsLoginModalOpen(false);
+      }
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
 
   const handleOpenBooking = (pkg: TicketPackage) => {
     setSelectedPackage(pkg);
@@ -28,51 +85,38 @@ function AppContent() {
     setIsBookingModalOpen(false);
   };
 
-  const handleAdminAccess = () => {
-    if (isAuthenticated) {
-      setCurrentView('admin');
-    } else {
-      setIsLoginModalOpen(true);
-    }
-  };
-
   const handleLoginSuccess = () => {
+    sessionStorage.setItem('nuwara_admin_auth', 'true');
     setIsAuthenticated(true);
     setIsLoginModalOpen(false);
     setCurrentView('admin');
+    if (!isAdminRoute()) {
+      navigateTo('/admin');
+    }
+  };
+
+  const handleCloseLogin = () => {
+    setIsLoginModalOpen(false);
+    if (!isAuthenticated) {
+      setCurrentView('public');
+      navigateTo('/');
+    }
+  };
+
+  const handleSwitchToPublic = () => {
+    setCurrentView('public');
+    navigateTo('/');
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('nuwara_admin_auth');
+    setIsAuthenticated(false);
+    setCurrentView('public');
+    navigateTo('/');
   };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-[#071A3D] selection:text-white">
-      {/* View Switcher Floating Bar for smooth reviewer/demo testing */}
-      <div className="fixed top-4 right-4 z-40 flex items-center gap-2 bg-[#071A3D]/90 backdrop-blur-md text-white p-1.5 rounded-full border border-white/20 shadow-xl">
-        <button
-          type="button"
-          onClick={() => setCurrentView('public')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-            currentView === 'public'
-              ? 'bg-white text-[#071A3D] shadow-sm'
-              : 'text-slate-300 hover:text-white'
-          }`}
-        >
-          <Eye className="w-3.5 h-3.5" />
-          <span>Public Event</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={handleAdminAccess}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-            currentView === 'admin'
-              ? 'bg-amber-400 text-[#071A3D] shadow-sm font-bold'
-              : 'text-slate-300 hover:text-white'
-          }`}
-        >
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Admin Portal</span>
-        </button>
-      </div>
-
       {currentView === 'public' ? (
         <>
           {/* 1. Hero Section (Figma Frame: 1512x453 with real banner image and countdown) */}
@@ -83,8 +127,8 @@ function AppContent() {
             <HomeMainContent onBookTicket={handleOpenBooking} />
           </main>
 
-          {/* 3. Footer (Figma: #071A3D with copyright text & admin link) */}
-          <Footer onAdminClick={handleAdminAccess} />
+          {/* 3. Footer (Figma: #071A3D with copyright text) */}
+          <Footer />
 
           {/* 4. Interactive Booking & Upload Payment Proof Flow (Figma Frames: #4:121 & #26:3515) */}
           <ErrorBoundary onReset={handleCloseBooking}>
@@ -95,22 +139,31 @@ function AppContent() {
             />
           </ErrorBoundary>
 
-          {/* 5. Login Modal (Figma Frame: #114:364 "Welcome To NuwaraAle") */}
+          {/* 5. Login Modal */}
           <LoginModal
             isOpen={isLoginModalOpen}
-            onClose={() => setIsLoginModalOpen(false)}
+            onClose={handleCloseLogin}
             onLoginSuccess={handleLoginSuccess}
           />
         </>
       ) : (
         /* Admin Management Portal (Figma Frames: #58:4193 Dashboard, #59:5649 Bookings, #62:8730 Packages) */
-        <AdminPortal
-          onSwitchToPublic={() => setCurrentView('public')}
-          onLogout={() => {
-            setIsAuthenticated(false);
-            setCurrentView('public');
-          }}
-        />
+        <>
+          {isAuthenticated ? (
+            <AdminPortal
+              onSwitchToPublic={handleSwitchToPublic}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <div className="min-h-screen bg-[#07132B] flex flex-col items-center justify-center p-4">
+              <LoginModal
+                isOpen={true}
+                onClose={handleCloseLogin}
+                onLoginSuccess={handleLoginSuccess}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
